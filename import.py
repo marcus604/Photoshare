@@ -37,7 +37,7 @@ exifTags=["Image Make", "Image Model", "EXIF LensModel", "Exif Flash", "Image Da
 
 #need to scan whole folder
 #ask user/grab from config, the directory to use to store photos
-libraryDir = Path("../Library")
+libraryDir = Path("Library/")
 
 #Do I have permission, is there enough space, need to catch this
 if not os.path.exists(libraryDir):
