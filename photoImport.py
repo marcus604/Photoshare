@@ -14,6 +14,8 @@ from PIL import Image
 from enum import Enum
 
 
+class NoFilesToImport(Exception):
+    pass
 
 class MediaType(Enum):
     IMG = 1
@@ -24,6 +26,26 @@ class MediaType(Enum):
 def path_leaf(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
+
+def collectFilesToImport(dirToScan):
+    rootDir = Path(dirToScan)
+    #rootDir = Path("ImportTest/")
+    #Need to specify only photos, and to traverse through other folders
+    file_list = [f for f in rootDir.glob('**/*') if f.is_file()]
+
+    #Nothing to import
+    if not file_list:
+        raise NoFilesToImport('There are no files to be imported')
+    return file_list
+
+def connectSQL():
+    return pymysql.connect(host='localhost',
+                             user='root',
+                             password='Idagl00w',
+                             db='photos',
+                             charset='utf8mb4',
+                             cursorclass=pymysql.cursors.DictCursor)
+
 
 
 #CONSTANTS
@@ -45,14 +67,9 @@ if not os.path.exists(libraryDir):
 
 #ask user/grab from cofnig, the directory to use to auto import photos
 
-rootDir = Path("Import/")
-#rootDir = Path("ImportTest/")
-#Need to specify only photos, and to traverse through other folders
-file_list = [f for f in rootDir.glob('**/*') if f.is_file()]
+file_list = collectFilesToImport('Import/')
 
-#Nothing to import
-if not file_list:
-    sys.exit(0)
+
     
 
 #if file list empty, should quit
@@ -114,7 +131,7 @@ for photoPath in file_list:
     #Only works with windows, probably
     newFilePath = Path(str(libraryDir) + "/" + year + "/" + month + "/" + day + "/" + str(path_leaf(photoPath)))
 
-    if mediaType == "img":
+    if mediaType.value == 1:
         #screws up portrait photos, puts them as landscape
         image = Image.open(photoPath)
         image.thumbnail((400, 400))
