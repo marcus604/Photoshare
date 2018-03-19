@@ -8,6 +8,7 @@ import os, errno
 import shutil
 import ntpath
 import sys
+import hashlib
 from pathlib import Path
 from multiprocessing import Pool 
 from PIL import Image
@@ -15,6 +16,9 @@ from enum import Enum
 
 
 class NoFilesToImport(Exception):
+    pass
+
+class DuplicatePhotoFound(Exception):
     pass
 
 class MediaType(Enum):
@@ -37,6 +41,13 @@ def collectFilesToImport(dirToScan):
     if not file_list:
         raise NoFilesToImport('There are no files to be imported')
     return file_list
+
+def file_hash(filename):
+    h = hashlib.md5()
+    with open(filename, 'rb', buffering=0) as f:
+        for b in iter(lambda : f.read(128*1024), b''):
+            h.update(b)
+    return h.hexdigest()
 
 def connectSQL():
     return pymysql.connect(host='localhost',
@@ -95,7 +106,19 @@ for photoPath in file_list:
         continue
     
     print(mediaType.value)
-    
+
+    #Need to see if photo is duplicate
+    #Will hash it and compare to database of hashes
+    #Dont want to grab the same list over and over again
+    #Should have global persistent list
+    #Need to make sure that as its importing its adding each new hash so the list is current
+    #Could use a hashing algo specifically for photos but dont want to ignore photos where quality may be different
+    #Only want to avoid exact matches, also allows the database to use the hash as the primary key
+
+    print(file_hash(photoPath))    
+
+
+    '''
     f = open(photoPath, "rb")
 
     tags = exifread.process_file(f)
@@ -163,6 +186,7 @@ for photoPath in file_list:
     #    pass
     finally:
         exifValues = []
+        
 
     
         
@@ -170,7 +194,7 @@ for photoPath in file_list:
 
 connection.close()
 #tags = exifread.process_file(f, details=False) Process less
-
+'''
 print("DONE DONE DONE")
 
 
