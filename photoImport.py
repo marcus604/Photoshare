@@ -42,12 +42,29 @@ def collectFilesToImport(dirToScan):
         raise NoFilesToImport('There are no files to be imported')
     return file_list
 
-def file_hash(filename):
+def md5Hash(filename):
     h = hashlib.md5()
     with open(filename, 'rb', buffering=0) as f:
         for b in iter(lambda : f.read(128*1024), b''):
             h.update(b)
     return h.hexdigest()
+
+#Requests all rows from current db, returns list of just md5 hash values
+def getExistingHashes(sqlConnection, hashes):
+    try:
+        with connection.cursor() as cursor:
+            sql = "SELECT `dir` FROM `photos`"
+            cursor.execute(sql)
+            result = cursor.fetchall()
+
+            for row in result:
+                hashes.append(row['dir'])
+        
+            cursor.close ()
+    except BaseException:
+        pass
+    
+        
 
 def connectSQL():
     return pymysql.connect(host='localhost',
@@ -96,6 +113,11 @@ connection = pymysql.connect(host='localhost',
 
 
 exifValues=[]
+hashes=[]
+
+#should test to see if its faster to grab all hashes and compare OR OR OR
+    #go through all the processing first (grab exif, thumbnail) and then try to insert it and catch duplicate primary key
+getExistingHashes(connection, hashes)
 
 for photoPath in file_list:
     if photoPath.suffix.lower() in imageExtensions:
@@ -105,7 +127,6 @@ for photoPath in file_list:
     else:
         continue
     
-    print(mediaType.value)
 
     #Need to see if photo is duplicate
     #Will hash it and compare to database of hashes
@@ -114,11 +135,9 @@ for photoPath in file_list:
     #Need to make sure that as its importing its adding each new hash so the list is current
     #Could use a hashing algo specifically for photos but dont want to ignore photos where quality may be different
     #Only want to avoid exact matches, also allows the database to use the hash as the primary key
+    
+    currentPhotoHash = md5Hash(photoPath)    
 
-    print(file_hash(photoPath))    
-
-
-    '''
     f = open(photoPath, "rb")
 
     tags = exifread.process_file(f)
@@ -194,7 +213,7 @@ for photoPath in file_list:
 
 connection.close()
 #tags = exifread.process_file(f, details=False) Process less
-'''
+
 print("DONE DONE DONE")
 
 

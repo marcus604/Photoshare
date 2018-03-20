@@ -1,4 +1,5 @@
 import pytest
+import pymysql
 from photoImport import NoFilesToImport, collectFilesToImport
 
 
@@ -6,6 +7,11 @@ from photoImport import NoFilesToImport, collectFilesToImport
 def testNoFilesToImportException():
     with pytest.raises(NoFilesToImport):
         collectFilesToImport("/empty")
+
+def testForDuplicates():
+    with pytest.raises(pymysql.err.IntegrityError):
+        collectFilesToImport("/empty")
+
 
 
 
