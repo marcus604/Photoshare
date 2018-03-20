@@ -42,4 +42,4 @@ Thumbs.db
 /Import/
 /Library/
 /__pycache__/
-/.pytest_cache/
+/.*/
