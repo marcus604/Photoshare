@@ -42,6 +42,7 @@ def collectFilesToImport(dirToScan):
         raise NoFilesToImport('There are no files to be imported')
     return file_list
 
+#splits it in case its a large file (ie. video)
 def md5Hash(filename):
     h = hashlib.md5()
     with open(filename, 'rb', buffering=0) as f:
@@ -173,11 +174,13 @@ for photoPath in file_list:
     #Only works with windows, probably
     newFilePath = Path(str(libraryDir) + "/" + year + "/" + month + "/" + day + "/" + str(path_leaf(photoPath)))
 
-    if mediaType.value == 1:
+
+    #Keeps failing
+    #if mediaType.value == 1:
         #screws up portrait photos, puts them as landscape
-        image = Image.open(photoPath)
-        image.thumbnail((400, 400))
-        image.save(newFilePath)
+        #image = Image.open(photoPath)
+        #image.thumbnail((400, 400))
+        #image.save(newFilePath)
 
     newFilePath = year + "/" + month + "/" + day + "/" + str(path_leaf(photoPath))
     
@@ -191,8 +194,8 @@ for photoPath in file_list:
 
         with connection.cursor() as cursor:
             # Create a new record
-            sql = "INSERT INTO `photos` (`dir`, `make`, `model`, `lensModel`, `flash`, `dateTime`, `ISO`, `aperture`, `focalLength`, `width`, `height`, `exposureTime`, `sharpness`, `type`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-            cursor.execute(sql, (newFilePath, exifValues[0], exifValues[1], exifValues[2], exifValues[3], exifValues[4], exifValues[5], exifValues[6], exifValues[7], exifValues[8], exifValues[9], exifValues[10], exifValues[11], mediaType.value))
+            sql = "INSERT INTO `photos` (`md5Hash`, `make`, `model`, `lensModel`, `flash`, `dateTime`, `ISO`, `aperture`, `focalLength`, `width`, `height`, `exposureTime`, `sharpness`, `type`, `dir`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            cursor.execute(sql, (currentPhotoHash, exifValues[0], exifValues[1], exifValues[2], exifValues[3], exifValues[4], exifValues[5], exifValues[6], exifValues[7], exifValues[8], exifValues[9], exifValues[10], exifValues[11], mediaType.value, newFilePath))
 
             # connection is not autocommit by default. So you must commit to save
             # your changes.
