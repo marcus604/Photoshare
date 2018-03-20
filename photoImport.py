@@ -51,19 +51,21 @@ def md5Hash(filename):
     return h.hexdigest()
 
 #Requests all rows from current db, returns list of just md5 hash values
-def getExistingHashes(sqlConnection, hashes):
+def getExistingHashes(sqlConnection):
     try:
         with connection.cursor() as cursor:
-            sql = "SELECT `dir` FROM `photos`"
+            sql = "SELECT `md5Hash` FROM `photos`"
             cursor.execute(sql)
             result = cursor.fetchall()
-
+            hashes = []
             for row in result:
-                hashes.append(row['dir'])
+                hashes.append(row['md5Hash'])
         
             cursor.close ()
+            return hashes
     except BaseException:
         pass
+
     
         
 
@@ -114,11 +116,11 @@ connection = pymysql.connect(host='localhost',
 
 
 exifValues=[]
-hashes=[]
+
 
 #should test to see if its faster to grab all hashes and compare OR OR OR
     #go through all the processing first (grab exif, thumbnail) and then try to insert it and catch duplicate primary key
-getExistingHashes(connection, hashes)
+hashes = getExistingHashes(connection)
 
 for photoPath in file_list:
     if photoPath.suffix.lower() in imageExtensions:
@@ -137,7 +139,19 @@ for photoPath in file_list:
     #Could use a hashing algo specifically for photos but dont want to ignore photos where quality may be different
     #Only want to avoid exact matches, also allows the database to use the hash as the primary key
     
-    currentPhotoHash = md5Hash(photoPath)    
+    currentPhotoHash = md5Hash(photoPath)
+
+    duplicate = False
+    for i in hashes:
+        if i == currentPhotoHash:
+            duplicate = True
+            break
+
+    if duplicate == True:
+        continue
+    
+    hashes.append(currentPhotoHash)
+    
 
     f = open(photoPath, "rb")
 
