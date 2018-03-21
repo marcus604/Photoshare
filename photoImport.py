@@ -88,6 +88,7 @@ videoExtensions=[".mp4", ".mov", ".avi", ".mkv"]
 photosImported = 0
 duplicatesSkipped = 0
 importErrors = 0
+nonSupportedFilesSkipped = 0
 
 #Should split up tags for videos
 exifTags=["Image Make", "Image Model", "EXIF LensModel", "Exif Flash", "Image DateTime", "EXIF ISOSpeedRatings",
@@ -105,9 +106,9 @@ if not os.path.exists(libraryDir):
 #ask user/grab from config, the directory to use to auto import photos
 
 try:
-    file_list = collectFilesToImport('Imporsst/')
+    file_list = collectFilesToImport('Import/')
 except NoFilesToImport:
-    print('No files to import')
+    print('No files found to import')
     print ('The script took {0} second !'.format(time.time() - startTime))
     os._exit(0)
 
@@ -139,6 +140,7 @@ for photoPath in file_list:
     elif photoPath.suffix.lower() in videoExtensions:       #Need to test other video extensions
         mediaType=MediaType.VID
     else:
+        nonSupportedFilesSkipped += 1
         continue
     
 
@@ -244,6 +246,7 @@ connection.close()
 print('Imported {0} photos'.format(photosImported))
 print('Skipped {0} photos'.format(duplicatesSkipped))
 print('Error with {0} photos'.format(importErrors))
+print('Skipped {0} non supported files'.format(nonSupportedFilesSkipped))
 print ('The script took {0} second !'.format(time.time() - startTime))
 
 

@@ -6,14 +6,14 @@ from photoImport import NoFilesToImport, collectFilesToImport
 
 def testNoFilesToImportException():
     with pytest.raises(NoFilesToImport):
-        collectFilesToImport("/empty")
+        collectFilesToImport("/fakeDir")
 
 '''def testForDuplicates():
     with pytest.raises(pymysql.err.IntegrityError):
         collectFilesToImport("/empty")
+
+
 '''
-
-
 
 '''
 @pytest.fixture
