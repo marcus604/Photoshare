@@ -78,10 +78,16 @@ def connectSQL():
                              cursorclass=pymysql.cursors.DictCursor)
 
 
+startTime = time.time()
 
 #CONSTANTS
 imageExtensions=[".jpg", ".png", ".tiff", ".gif"]
 videoExtensions=[".mp4", ".mov", ".avi", ".mkv"]
+
+#Logging Variables
+photosImported = 0
+duplicatesSkipped = 0
+importErrors = 0
 
 #Should split up tags for videos
 exifTags=["Image Make", "Image Model", "EXIF LensModel", "Exif Flash", "Image DateTime", "EXIF ISOSpeedRatings",
@@ -96,9 +102,13 @@ libraryDir = Path("Library/")
 if not os.path.exists(libraryDir):
     os.makedirs(libraryDir)
 
-#ask user/grab from cofnig, the directory to use to auto import photos
+#ask user/grab from config, the directory to use to auto import photos
 
-file_list = collectFilesToImport('Import/')
+try:
+    file_list = collectFilesToImport('Imporsst/')
+except NoFilesToImport:
+    print('No files to import')
+    sys.exit(0)
 
 
     
@@ -131,14 +141,8 @@ for photoPath in file_list:
         continue
     
 
-    #Need to see if photo is duplicate
-    #Will hash it and compare to database of hashes
-    #Dont want to grab the same list over and over again
-    #Should have global persistent list
-    #Need to make sure that as its importing its adding each new hash so the list is current
-    #Could use a hashing algo specifically for photos but dont want to ignore photos where quality may be different
-    #Only want to avoid exact matches, also allows the database to use the hash as the primary key
-    
+
+    #Check for duplicates
     currentPhotoHash = md5Hash(photoPath)
 
     duplicate = False
@@ -148,8 +152,10 @@ for photoPath in file_list:
             break
 
     if duplicate == True:
+        duplicatesSkipped += 1
         continue
     
+    #Check if trying to import duplicates
     hashes.append(currentPhotoHash)
     
 
@@ -215,12 +221,15 @@ for photoPath in file_list:
             # your changes.
             connection.commit()
     except pymysql.err.DataError:   #Data too long
+        importErrors += 1
         pass
     except pymysql.err.IntegrityError:  #Duplicate Primary Key
+        importErrors += 1
         pass
     #except BaseException:
     #    pass
     finally:
+        photosImported += 1
         exifValues = []
         
 
@@ -231,7 +240,11 @@ for photoPath in file_list:
 connection.close()
 #tags = exifread.process_file(f, details=False) Process less
 
-print("DONE DONE DONE")
+print('Imported {0} photos'.format(photosImported))
+print('Skipped {0} photos'.format(duplicatesSkipped))
+print('Error with {0} photos'.format(importErrors))
+print ('The script took {0} second !'.format(time.time() - startTime))
+
 
 
 

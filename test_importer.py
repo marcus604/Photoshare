@@ -8,10 +8,10 @@ def testNoFilesToImportException():
     with pytest.raises(NoFilesToImport):
         collectFilesToImport("/empty")
 
-def testForDuplicates():
+'''def testForDuplicates():
     with pytest.raises(pymysql.err.IntegrityError):
         collectFilesToImport("/empty")
-
+'''
 
 
 
