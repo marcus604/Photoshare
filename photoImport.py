@@ -108,7 +108,8 @@ try:
     file_list = collectFilesToImport('Imporsst/')
 except NoFilesToImport:
     print('No files to import')
-    sys.exit(0)
+    print ('The script took {0} second !'.format(time.time() - startTime))
+    os._exit(0)
 
 
     
