@@ -106,7 +106,7 @@ if not os.path.exists(libraryDir):
 #ask user/grab from config, the directory to use to auto import photos
 
 try:
-    file_list = collectFilesToImport('Import/')
+    file_list = collectFilesToImport('Import/Test/')
 except NoFilesToImport:
     print('No files found to import')
     print ('The script took {0} second !'.format(time.time() - startTime))
@@ -184,7 +184,10 @@ for photoPath in file_list:
         
     else:
         now = datetime.datetime.now()
-        year,month,day = str(now.year),str(now.month),str(now.day)
+        year = str(now.year)
+        month = '{:02d}'.format(now.month)
+        day = '{:02d}'.format(now.day)
+
 
     newDirPath = Path(str(libraryDir) + "/" + year + "/" + month + "/" + day + "/")
     newThumbnailPath = Path(str(libraryDir) + "/thumbnails/" + year + "/" + month + "/" + day + "/")
