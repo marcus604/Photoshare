@@ -187,23 +187,26 @@ for photoPath in file_list:
         year,month,day = str(now.year),str(now.month),str(now.day)
 
     newDirPath = Path(str(libraryDir) + "/" + year + "/" + month + "/" + day + "/")
+    newThumbnailPath = Path(str(libraryDir) + "/thumbnails/" + year + "/" + month + "/" + day + "/")
 
     #Do I have permission, is there enough space, need to catch this
     if not os.path.exists(newDirPath):
         os.makedirs(newDirPath)
+        os.makedirs(newThumbnailPath)
 
     shutil.copy2(photoPath, newDirPath)
 
     #Only works with windows, probably
     newFilePath = Path(str(libraryDir) + "/" + year + "/" + month + "/" + day + "/" + str(path_leaf(photoPath)))
+    thumbnailPath = Path(str(libraryDir) + "/thumbnails/" + year + "/" + month + "/" + day + "/" + str(path_leaf(photoPath)))
 
 
     #Keeps failing
-    #if mediaType.value == 1:
+    if mediaType.value == 1:
         #screws up portrait photos, puts them as landscape
-        #image = Image.open(photoPath)
-        #image.thumbnail((400, 400))
-        #image.save(newFilePath)
+        image = Image.open(photoPath)
+        image.thumbnail((400, 400))
+        image.save(thumbnailPath)
 
     newFilePath = year + "/" + month + "/" + day + "/" + str(path_leaf(photoPath))
     
