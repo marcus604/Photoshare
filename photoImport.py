@@ -93,7 +93,7 @@ nonSupportedFilesSkipped = 0
 #Should split up tags for videos
 exifTags=["Image Make", "Image Model", "EXIF LensModel", "Exif Flash", "Image DateTime", "EXIF ISOSpeedRatings",
             "EXIF MaxApertureValue", "EXIF FocalLength", "EXIF ExifImageWidth", 
-            "EXIF ExifImageLength", "EXIF ExposureTime", "EXIF Sharpness"]
+            "EXIF ExifImageLength", "EXIF ExposureTime", "EXIF Sharpness", "Image Orientation"]
 
 #need to scan whole folder
 #ask user/grab from config, the directory to use to store photos
@@ -204,13 +204,22 @@ for photoPath in file_list:
     thumbnailPath = Path(str(libraryDir) + "/thumbnails/" + year + "/" + month + "/" + day + "/" + str(path_leaf(photoPath)))
 
 
+    #Need to see if its portrait and adjust how it saves the thumbnail
     #Keeps failing
     if mediaType.value == 1:
         #screws up portrait photos, puts them as landscape
         image = Image.open(photoPath)
+        print(str(path_leaf(photoPath)))
+        print(exifValues[12])
+        
+        if exifValues[12] == "Rotated 90 CW":
+            image = image.rotate(270)
+        else:
+            image = image.rotate(90)
         image.thumbnail((400, 400))
+        
         image.save(thumbnailPath)
-
+    continue
     newFilePath = year + "/" + month + "/" + day + "/" + str(path_leaf(photoPath))
     
     
