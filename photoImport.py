@@ -106,7 +106,7 @@ if not os.path.exists(libraryDir):
 #ask user/grab from config, the directory to use to auto import photos
 
 try:
-    file_list = collectFilesToImport('Import/Test/')
+    file_list = collectFilesToImport('Import/')
 except NoFilesToImport:
     print('No files found to import')
     print ('The script took {0} second !'.format(time.time() - startTime))
@@ -204,30 +204,38 @@ for photoPath in file_list:
     thumbnailPath = Path(str(libraryDir) + "/thumbnails/" + year + "/" + month + "/" + day + "/" + str(path_leaf(photoPath)))
 
 
-    #Need to see if its portrait and adjust how it saves the thumbnail
-    #Keeps failing
+    
+    #Determines orientation and creates thumbnail of image in mirrored dir structure
     if mediaType.value == 1:
-        #screws up portrait photos, puts them as landscape
         image = Image.open(photoPath)
-        print(str(path_leaf(photoPath)))
-        print(exifValues[12])
+        #print(str(path_leaf(photoPath)))
+        #print(exifValues[12])
         
-        if exifValues[12] == "Rotated 90 CW":
-            image = image.rotate(270)
-        else:
-            image = image.rotate(90)
         image.thumbnail((400, 400))
-        
+
+        #Should throw more photos through this
+        if exifValues[12] == "Rotated 90 CW":
+            image = image.rotate(270, expand=True)
+        elif exifValues[12] == "Rotated 90 CCW":
+            image = image.rotate(90, expand=True)
+        elif exifValues[12] == "Rotated 180":
+            image = image.rotate(180, expand=True)
+        elif exifValues[12] == "Mirrored horizontal":
+            image = image.transpose(Image.FLIP_LEFT_RIGHT)
+        elif exifValues[12] == "Mirrored vertical":
+            image = image.transpose(Image.FLIP_TOP_BOTTOM)
+        elif exifValues[12] == "Mirrored horizontal then rotated 90 CCW":
+            image = image.transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(90, expand=True)
+        elif exifValues[12] == "Mirrored horizontal then rotated 90 CW":
+            image = image.transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.rotate(270, expand=True)
+            
+            
         image.save(thumbnailPath)
-    continue
+
     newFilePath = year + "/" + month + "/" + day + "/" + str(path_leaf(photoPath))
     
-    
-
-    
-
-    
-
     try:
 
         with connection.cursor() as cursor:
