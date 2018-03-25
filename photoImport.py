@@ -115,8 +115,9 @@ except NoFilesToImport:
 
     
 
-#if file list empty, should quit
 
+
+#Need to catch this
 #Connect to sql host
 #Need to move this to a config file
 connection = pymysql.connect(host='localhost',
