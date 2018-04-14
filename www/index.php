@@ -45,10 +45,11 @@ add upload feature
 </header>
 </div>
 
+<div class="test">
 
-<!-- Connects to AWS instance of server
+<!-- Connects to AWS instance of server -->
 <?php
-$address = '34.227.46.96';
+$address = '34.207.252.132';
 $port = 9875;
 
 $sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -74,6 +75,10 @@ echo $out;
 
 socket_close($sock);
 ?>
+
+</div>
+
+
 <!-- Photo Grid -->
 <div class="w3-row-padding" id="myGrid" style="margin-bottom:128px">
 

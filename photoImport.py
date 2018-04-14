@@ -120,12 +120,16 @@ except NoFilesToImport:
 #Need to catch this
 #Connect to sql host
 #Need to move this to a config file
-connection = pymysql.connect(host='localhost',
+try:
+    connection = pymysql.connect(host='localhost',
                              user='root',
                              password='Idagl00w',
                              db='photos',
                              charset='utf8mb4',
                              cursorclass=pymysql.cursors.DictCursor)
+except:
+    print("Could not connect to mysql")
+    os._exit(0)
 
 
 exifValues=[]
