@@ -52,19 +52,20 @@ def md5Hash(filename):
 
 #Requests all rows from current db, returns list of just md5 hash values
 def getExistingHashes(sqlConnection):
+    hashes = []
     try:
         with connection.cursor() as cursor:
             sql = "SELECT `md5Hash` FROM `photos`"
             cursor.execute(sql)
             result = cursor.fetchall()
-            hashes = []
             for row in result:
                 hashes.append(row['md5Hash'])
-        
             cursor.close ()
-            return hashes
     except BaseException:
         pass
+    finally:
+        return hashes
+    
 
     
         
@@ -127,6 +128,7 @@ try:
                              db='photos',
                              charset='utf8mb4',
                              cursorclass=pymysql.cursors.DictCursor)
+#Need to handle when no database named photos
 except:
     print("Could not connect to mysql")
     os._exit(0)
@@ -149,19 +151,20 @@ for photoPath in file_list:
         continue
     
 
-
-    #Check for duplicates
     currentPhotoHash = md5Hash(photoPath)
 
-    duplicate = False
-    for i in hashes:
-        if i == currentPhotoHash:
-            duplicate = True
-            break
+    #Check for duplicates
+    if hashes:  #Skip if no previous photos
+        duplicate = False
+        for i in hashes:
+            if i == currentPhotoHash:
+                duplicate = True
+                break
 
-    if duplicate == True:
-        duplicatesSkipped += 1
-        continue
+        if duplicate == True:
+            duplicatesSkipped += 1
+            continue
+    
     
     #Check if trying to import duplicates
     hashes.append(currentPhotoHash)
@@ -251,16 +254,19 @@ for photoPath in file_list:
             # connection is not autocommit by default. So you must commit to save
             # your changes.
             connection.commit()
+            photosImported += 1
     except pymysql.err.DataError:   #Data too long
         importErrors += 1
         pass
     except pymysql.err.IntegrityError:  #Duplicate Primary Key
         importErrors += 1
         pass
+    except pymysql.err.ProgrammingError: #Table doesnt exist
+        importErrors += 1
+        pass
     #except BaseException:
     #    pass
     finally:
-        photosImported += 1
         exifValues = []
         
 
