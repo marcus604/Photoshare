@@ -15,13 +15,20 @@ def handleClientConnect(sock, addr):
 	rest = bytes()
 	while True:
 		try:
-			(msgs, rest) = photoshare.receiveMessages(sock, rest)
+			msgs = photoshare.receiveMessages(sock)
 		except (EOFError, ConnectionError):
 			handle_disconnect(sock, addr)
 			break
-		for msg in msgs:
-			msg = '{}: {}'.format(addr, msg)
-			print(msg)
+		if msgs.instruction == '00':
+			print("handshake")
+			
+		elif msgs.instruction == '01':
+			print("Pull")
+		
+
+
+
+		
 
 def broadcast_msg(msg):
 	""" Add message to each connected client's send queue """
@@ -59,8 +66,7 @@ def handle_disconnect(sock, addr):
 
 if __name__ == '__main__':
 	#Do I have an internet connection?
-
-	
+		
 	listenSock = photoshare.createListenSocket(HOST, PORT)
 	addr = listenSock.getsockname()
 	print('Listening on {}'.format(addr))
