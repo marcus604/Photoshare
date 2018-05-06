@@ -44,12 +44,13 @@ def receiveMessages(sock):
 	type = sock.read(2)
 	length = sock.read(2)
 	recvd = sock.read(int(length))
-	message = psMessage(bigOrLittleEndian, version, type, length, recvd)
+
+	receivedMessage = psMessage(bigOrLittleEndian, version, type, length, recvd)
 	
-	message.print()
-	if not message:
+	receivedMessage.print()
+	if not receivedMessage:
 		raise ConnectionError()
-	return message
+	return receivedMessage
 
 def prep_msg(msg):
 	""" Prepare a string to be sent as a message """
@@ -65,11 +66,35 @@ def send_msg(sock, message):
 
 class psMessage:
 	def __init__(self, endian, version, instruction, length, data):
+		#Create object from either strings, or byte code. 
+		#Essentially overloading the constructor
+		try:
+			self.endian = endian.encode('utf-8')
+			self.version = version.encode('utf-8')
+			self.instruction = instruction.encode('utf-8')
+			self.data = data.encode('utf-8')
+			self.length = str(len(self.data)).encode('utf-8')
+		except AttributeError:		
+			self.endian = endian
+			self.version = version
+			self.instruction = instruction
+			self.data = data
+			self.length = length
+		
+
+	def fromString(self, endian, version, instruction, data):
+		self.endian = endian.encode('utf-8')
+		self.version = version.encode('utf-8')
+		self.instruction = instruction.encode('utf-8')
+		self.data = data.encode('utf-8')
+		self.length = str(len(self.data)).encode('utf-8')
+
+	def fromByteString(self, endian, version, instruction, length, data):
 		self.endian = endian
 		self.version = version
 		self.instruction = instruction
-		self.length = length
 		self.data = data
+		self.length = length
 
 	def print(self):
 		print("Endian: {}".format(self.formatEndian()))
@@ -78,14 +103,14 @@ class psMessage:
 		print("Length: {} Bytes".format(self.formatLength()))
 		print("Data: {}".format(self.data))
 
-	
-	def getBytes(self):
+
+	def getByteString(self):
 		message = bytes()
-		message += str.encode(self.endian)			#Endian Type
-		message += str.encode(self.version)			#Version
-		message += str.encode(self.instruction)		#Type of Message (New Client, Request Update, Push update)
-		message += str.encode(str(self.length))			#Length of message
-		message += self.data						#Message
+		message += self.endian			#Endian Type
+		message += self.version			#Version
+		message += self.instruction		#Type of Message (New Client, Request Update, Push update)
+		message += self.length		#Length of message
+		message += self.data			#Message
 		
 		print(message)
 		return message
@@ -94,17 +119,19 @@ class psMessage:
 		#00 Handshake
 		#01 Request Update
 		#02 Push Update
-		if self.instruction == b'00':
+		i = str(self.instruction)
+		i = i[2] + i[3]
+		if i == '00':
 			return "Handshake"
-		elif self.instruction == b'01':
+		elif i == '01':
 			return "Pull"
-		elif self.instruction == b'02':
+		elif i == '02':
 			return "Push"
 
 	
 	def formatLength(self):
 		strVal = str(self.length)
-		return strVal[2] + '.' + strVal[3]
+		return strVal[2] + strVal[3]
 
 	def formatVersion(self):
 		strVal = str(self.version)
@@ -112,6 +139,6 @@ class psMessage:
 
 	def formatEndian(self):
 		if self.endian == b'l':
-			return "Little"
+			return "little"
 		else:	# b'b'
-			return "Big"
+			return "big"

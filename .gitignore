@@ -44,5 +44,10 @@ Thumbs.db
 /__pycache__/
 /Certs/
 /.*/
+/bin/
+/include/
+/lib/
+/lib64/
+/share/
 
 

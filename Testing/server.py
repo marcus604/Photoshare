@@ -1,12 +1,18 @@
+from photoshare import psMessage
 import photoshare
 import ssl
 import threading, queue
+from argon2 import PasswordHasher
+import argon2
+
 
 VERSION = photoshare.VERSION
 HOST = ''
 PORT = 1428
 sendQueues = {}
 lock = threading.Lock()
+userName = 'Marcus'
+passwd = 'batteryHorseStaple1'
 
 
 def handleClientConnect(sock, addr):
@@ -19,15 +25,34 @@ def handleClientConnect(sock, addr):
 		except (EOFError, ConnectionError):
 			handle_disconnect(sock, addr)
 			break
-		if msgs.instruction == '00':
-			print("handshake")
-			
-		elif msgs.instruction == '01':
+		if msgs.formatInstruction() == 'Handshake':		#00
+			try:
+				verifyUser(msgs.data)
+			except argon2.exceptions.VerifyMismatchError:			
+				print("incorrect login/password")
+			#User is valid
+		elif msgs.formatInstruction() == 'Pull':		#01
 			print("Pull")
+		elif msgs.formatInstruction() == 'Push':		#02
+			print("push")
 		
 
 
-
+def verifyUser(data):
+	#Parse Username and password
+	str = data.decode('utf-8')
+	parts = str.split(':', maxsplit=1)
+	userName = parts[:-1]
+	password = parts[-1]
+	#Connect to DB
+	#look up username
+	#Valid user?
+	#Verify Password
+	ph = PasswordHasher()
+	password = 'batteryhorsestaple'
+	
+	ph.verify(password, "batteryhorsestsaple")
+	
 		
 
 def broadcast_msg(msg):

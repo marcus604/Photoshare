@@ -1,10 +1,12 @@
 import sys, socket, threading, queue
 import ssl
 import photoshare
+import time
+from argon2 import PasswordHasher
 
 from pprint import pprint
 
-ENDIAN = 'l'
+ENDIAN = 'b'
 VERSION = photoshare.VERSION
 TARGET_HOST = sys.argv[-1] if len(sys.argv) > 1 else '10.10.10.5'
 TARGET_PORT = photoshare.PORT
@@ -46,6 +48,31 @@ def handleClientReceive(sock):
 			sock.close()
 			break
 
+def loginToServer(sslSock):
+	#Get Username and password
+	#Username cannot have ':' character
+	#Hashes
+	ph = PasswordHasher()
+	
+	userName = 'Marcus'
+	
+	password = 'batteryhorsestaple'
+	password = ph.hash(password)
+	print(password)
+
+	data = userName + ':' + password
+
+	newMsg = photoshare.psMessage(ENDIAN, VERSION, '00', 0, data)
+	msg = newMsg.getByteString()
+
+	
+	try:
+		photoshare.send_msg(sslSock, msg)
+	except (ConnectionError, BrokenPipe):
+		print("WRONG")
+
+	
+
 
 if __name__ == '__main__':
 	#Am I configured to connect to a server?
@@ -62,15 +89,13 @@ if __name__ == '__main__':
 	#if not cert or ssl.match_hostname(cert, targetHost):
 	#	raise Exception("Invalid host for cert")
 
-	data = b'Marcus:batteryHorseStaple1'
-	length = int(sys.getsizeof(data))
-	newMessage = photoshare.psMessage(ENDIAN, VERSION, '00', length, data)
-	msg = newMessage.getBytes()
 
-	try:
-		photoshare.send_msg(sslSock, msg)
-	except (ConnectionError, BrokenPipe):
-		print("WRONG")
+	loginToServer(sslSock)
+	
+	#newMessage = photoshare.psMessage(ENDIAN, VERSION, '00', 20, data)
+	#msg = newMessage.getBytes()
+
+	
 		
 	#Loop indefinitely to receive messages from server
 	while True:
