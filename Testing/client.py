@@ -56,14 +56,16 @@ def loginToServer(sslSock):
 	
 	userName = 'marcus'
 	
-	password = 'hithere'
+	password = 'hi'
 	#password = ph.hash(password)
 	#print(password)
 
 	data = userName + ':' + password
-	len = len(data)
+	length = len(data)
+	if length < 10:
+		length = (f'{length:02}')
 
-	newMsg = photoshare.psMessage(ENDIAN, VERSION, '00', 0, data)
+	newMsg = photoshare.psMessage(ENDIAN, VERSION, '00', length, data)
 	msg = newMsg.getByteString()
 
 	

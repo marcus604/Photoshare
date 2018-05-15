@@ -22,3 +22,7 @@ install sql on vm ubuntu
 have it capable of creating database
 
 need to properly kill process so socket is unbound
+
+May 15th
+
+Fixing bug that happens when length is less than 10, its only one byte and its reading two, grabs part of the data and screws it up

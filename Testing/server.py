@@ -41,29 +41,27 @@ def handleClientConnect(sock, addr, sqlConnection):
 			break
 		if msgs.formatInstruction() == 'Handshake':		#00
 			if not verifyUser(msgs.data, sqlConnection):
-				print("verify failed")
 				handle_disconnect(sock, addr)
 				break
-			logger.info("User logged in")
-			#User is valid
+			#Valid User
 		elif msgs.formatInstruction() == 'Pull':		#01
 			print("Pull")
 		elif msgs.formatInstruction() == 'Push':		#02
 			print("push")
 		
 
-
+#NEED TO SCRUB SQL
 def verifyUser(data, sqlConnection):
 	#Parse Username and password from given data
 	#Connect to database and 
 	str = data.decode('utf-8')
 	parts = str.split(':', maxsplit=1)
-	userName = parts[:-1]
-	password = parts[-1]
+	userName = parts[0]
+	password = parts[1]
 	#Connect to DB and find given user
 	try:
 		with sqlConnection.cursor() as cursor:
-			sql = "SELECT `Password`, `Salt` FROM `photoshare`.`users` WHERE `UserName` = '{0}'".format(userName[0])
+			sql = "SELECT `Password`, `Salt` FROM `photoshare`.`users` WHERE `UserName` = '{0}'".format(userName)
 			cursor.execute(sql)
 			if cursor.rowcount == 0:	#No user found with that name	
 				raise argon2.exceptions.VerifyMismatchError
@@ -72,14 +70,14 @@ def verifyUser(data, sqlConnection):
 			salt = result[1]
 			ph = PasswordHasher()
 			ph.verify(sqlpass, password + salt)		#Throws verifyMismatchError
+			logger.info("User {0} connected".format(userName))
 			cursor.close ()
+			return True
 	except argon2.exceptions.VerifyMismatchError:
 		#Toggle for logging passwords, this would only be incorrect passwords
-		logger.info('Rejected Credentials {0} {1}'.format(userName[0], password))
+		logger.info('Rejected Credentials {0} {1}'.format(userName, password))
 	except pymysql.err.DatabaseError as e:
 		print("sql error in verifyUser")
-	except BaseException as e:					#FIX THIS
-		print("what are you")
 	finally:
 		cursor.close ()
 
@@ -170,6 +168,7 @@ def createNewUser(sqlConnection):
 			logger.info('New user {0}'.format(userName))
 	except pymysql.err.IntegrityError:
 		print("User {0} already exists".format(userName))
+		logger.debug("Rejected DuplicateUser {0}".format(userName))
 		createNewUser(sqlConnection)
 	except pymysql.err as e:
 		logger.error('Failed to create new user {0}'.format(userName))
@@ -189,7 +188,9 @@ def handleDatabaseConnect(type):
 			logger.info('Connected to database')
 			return sqlConnection
 		elif (type == 'Setup'):
-			return pymysql.connect(host='localhost', user='root', password='Idagl00w',	charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+			sqlConnection = pymysql.connect(host='localhost', user='root', password='Idagl00w',	charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+			logger.info("Creating Database")
+			return sqlConnection
 	
 	#Need to handle when no database named photos
 	except pymysql.err.OperationalError as e: #Couldnt connect to DB at host
@@ -200,7 +201,6 @@ def handleDatabaseConnect(type):
 		closeApp()
 	except pymysql.err.InternalError as e:	#No DB found; Create Database and two tables
 		if (e.args[0] == 1049):
-			logger.info("Creating Database")
 			sqlConnection = handleDatabaseConnect('Setup')
 			createDBandTables(sqlConnection)
 			createNewUser(sqlConnection)
@@ -213,7 +213,6 @@ if __name__ == '__main__':
 	#Do I have an internet connection?
 	
 	sqlConnection = handleDatabaseConnect("Connect")
-	logger.info('Connected to database')
 	#Start import process
 	#createNewUser(sqlConnection)
 
