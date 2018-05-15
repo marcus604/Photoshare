@@ -8,7 +8,7 @@ from pprint import pprint
 
 ENDIAN = 'b'
 VERSION = photoshare.VERSION
-TARGET_HOST = sys.argv[-1] if len(sys.argv) > 1 else '10.10.10.5'
+TARGET_HOST = sys.argv[-1] if len(sys.argv) > 1 else '10.10.10.6'
 TARGET_PORT = photoshare.PORT
 sendQueues = {}
 lock = threading.Lock()
@@ -54,13 +54,14 @@ def loginToServer(sslSock):
 	#Hashes
 	ph = PasswordHasher()
 	
-	userName = 'Marcus'
+	userName = 'marcus'
 	
-	password = 'batteryhorsestaple'
-	password = ph.hash(password)
-	print(password)
+	password = 'hithere'
+	#password = ph.hash(password)
+	#print(password)
 
 	data = userName + ':' + password
+	len = len(data)
 
 	newMsg = photoshare.psMessage(ENDIAN, VERSION, '00', 0, data)
 	msg = newMsg.getByteString()

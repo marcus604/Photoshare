@@ -1,10 +1,13 @@
 import socket
 import ssl
+import logging
 
 
 HOST = ''
 PORT = 1428
 VERSION = '01'
+logging.basicConfig(filename='photoshare.log',level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 #Create TCP socket, to receive connection
 def createListenSocket(host, port):
@@ -18,6 +21,8 @@ def createListenSocket(host, port):
 #Doesnt handle being port scanned
 def sslWrap(sock):
 	return ssl.wrap_socket(sock, server_side=True, certfile="server.crt", keyfile="server.key", ssl_version=ssl.PROTOCOL_SSLv23)
+		
+		
 
 
  #Protocol

@@ -1,8 +1,5 @@
 To Do:
 
-Overall:
-start using python tests
-
 Import:
 
 shouldnt copy the file until it tries to import it into database

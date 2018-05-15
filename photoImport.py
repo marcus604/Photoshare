@@ -125,7 +125,7 @@ try:
     connection = pymysql.connect(host='localhost',
                              user='root',
                              password='Idagl00w',
-                             db='photos',
+                             db='photoshare',
                              charset='utf8mb4',
                              cursorclass=pymysql.cursors.DictCursor)
 #Need to handle when no database named photos

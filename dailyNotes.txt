@@ -1,0 +1,24 @@
+May 11, 2018
+Still working on verification. 
+Need to properly log and action too many incorrect attempts
+Scrub all incoming info to prevent SQL Injection attacks
+
+Properly logging when connection is attempted without ssl
+Tested using port scanning app
+running overnight to see if any port scanning happens
+Nothing
+
+Need to properly log when incorrect username or password
+
+May 12th
+
+Still working on verification
+Properly logging bad ssl, incorrect username and password
+
+short passwords crash it
+
+setting up environments so I can easily run the app on any machine
+install sql on vm ubuntu
+have it capable of creating database
+
+need to properly kill process so socket is unbound
