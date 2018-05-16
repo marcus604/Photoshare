@@ -51,14 +51,18 @@ def handleClientReceive(sock):
 def loginToServer(sslSock):
 	#Get Username and password
 	#Username cannot have ':' character
-	#Hashes
-	ph = PasswordHasher()
 	
-	userName = 'marcus'
 	
-	password = 'haaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbbbbbbbbbccccccccccccccccccccccccccccccddddddddddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggz'
-	#password = ph.hash(password)
-	#print(password)
+	
+	userName = 'andy'
+	userNameLen = len(userName)
+	if userNameLen > 40:
+		logger.info("Rejected Username too long")
+	
+	password = 'hi'
+	passwordLen = len(password)
+	if passwordLen > 64:
+		logger.info("Rejected password too long")
 
 	data = userName + ':' + password
 	length = len(data)
@@ -94,8 +98,8 @@ if __name__ == '__main__':
 	#if not cert or ssl.match_hostname(cert, targetHost):
 	#	raise Exception("Invalid host for cert")
 
-
 	loginToServer(sslSock)
+
 	
 	#newMessage = photoshare.psMessage(ENDIAN, VERSION, '00', 20, data)
 	#msg = newMessage.getBytes()

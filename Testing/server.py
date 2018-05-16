@@ -148,17 +148,30 @@ def createDBandTables(sqlConnection):
 #Need to check for SQL injection
 def createNewUser(sqlConnection):
 	ph = PasswordHasher()
-	print("Create a New User:")
-	userName = input("Name: ")
-	passwordMatch = False
-	password = None
-	while not passwordMatch:
-		password = input("Password: ")
-		passwordVerify = input("Enter Password Again: ")
-		if password == passwordVerify:
-			passwordMatch = True
+	userNameValid = False
+	passwordValid = False
+
+	while not userNameValid:
+		print("Create a New User:")
+		userName = input("Name: ")
+		if len(userName) > 40:
+			print("Username cannot be longer than 40 characters")
 		else:
-			print("Passwords Do Not Match")
+			if ":" not in userName:
+				userNameValid = True
+			else:
+				print("Username cannot contain the character ':'")
+	
+	while not passwordValid:
+		password = input("Password: ")
+		if len(password) > 64:
+			print("Password cannot be longer than 64 characters")
+		else:
+			passwordVerify = input("Enter Password Again: ")
+			if password == passwordVerify:
+				passwordValid = True
+			else:
+				print("Passwords Do Not Match")
 	salt = secrets.token_hex(32)
 	hash = ph.hash(password + salt)
 	try:

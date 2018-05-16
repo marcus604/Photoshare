@@ -69,6 +69,11 @@ def send_msg(sock, message):
 	#data = prep_msg(msg)
 	sock.sendall(message)
 
+
+	#Endian			1 Bit; 0 = Little, 1 = Big
+	#Version		8 Bits;	0-255
+	#Instruction	4 Bits; 0-15; 0 = Handshake, 1 = Pull, 2 = Push
+	#Length			8 Bits
 class psMessage:
 	def __init__(self, endian, version, instruction, length, data):
 		#Create object from either strings, or byte code. 
