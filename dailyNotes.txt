@@ -25,4 +25,13 @@ need to properly kill process so socket is unbound
 
 May 15th
 
-Fixing bug that happens when length is less than 10, its only one byte and its reading two, grabs part of the data and screws it up
+Fixed bug that happens when length is less than 10, its only one byte and its reading two, grabs part of the data and screws it up
+testing different inputs for username and password to find bugs
+no password works fine
+too long a password does not
+
+
+need fix ConnectionResetError when app sends rst packet
+
+bytestrings are much larger than bytearray
+need to convert photoshare app to bytearray so I can properly pack data

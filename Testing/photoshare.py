@@ -78,8 +78,8 @@ class psMessage:
 			self.version = version.encode('utf-8')
 			self.instruction = instruction.encode('utf-8')
 			self.data = data.encode('utf-8')
-			self.length = length.encode('utf-8')
-		except AttributeError:		
+			self.length = str(length).encode('utf-8')
+		except AttributeError as e:		
 			self.endian = endian
 			self.version = version
 			self.instruction = instruction
