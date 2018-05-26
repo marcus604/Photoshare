@@ -35,3 +35,7 @@ need fix ConnectionResetError when app sends rst packet
 
 bytestrings are much larger than bytearray
 need to convert photoshare app to bytearray so I can properly pack data
+
+may 16th
+
+setup proper branch and git cmd line use
