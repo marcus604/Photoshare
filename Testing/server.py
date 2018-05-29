@@ -10,7 +10,7 @@ import secrets
 import time
 import logging
 
-
+ENDIAN = 'b'
 VERSION = photoshare.VERSION
 HOST = ''
 PORT = 1428
@@ -18,6 +18,7 @@ sendQueues = {}
 lock = threading.Lock()
 userName = 'Marcus'
 passwd = 'hi'
+TOKEN_SIZE = 32
 
 #logging.basicConfig(level=logging.INFO)
 logging.basicConfig(filename='photoshare.log',level=logging.DEBUG)
@@ -36,7 +37,7 @@ def handleClientConnect(sock, addr, sqlConnection):
 	while True:
 		try:
 			msgs = photoshare.receiveMessages(sock)
-		except (EOFError, ConnectionError):
+		except (EOFError, ConnectionError, ValueError):
 			handle_disconnect(sock, addr)
 			break
 		if msgs.formatInstruction() == 'Handshake':		#00
@@ -44,10 +45,26 @@ def handleClientConnect(sock, addr, sqlConnection):
 				handle_disconnect(sock, addr)
 				break
 			#Valid User
+			#Generate Token to send back to user
+			token = secrets.token_hex(TOKEN_SIZE)
+			newMsg = photoshare.psMessage(ENDIAN, VERSION, '00', TOKEN_SIZE, token)
+			msg = newMsg.getByteString()
+			broadcast_msg(msg)
 		elif msgs.formatInstruction() == 'Pull':		#01
 			print("Pull")
 		elif msgs.formatInstruction() == 'Push':		#02
 			print("push")
+
+def handle_client_send(sock, q, addr):
+	""" Monitor queue for new messages, send them to client as they arrive """
+	while True:
+		msg = q.get()
+		if msg == None: break
+		try:
+			photoshare.send_msg(sock, msg)
+		except (ConnectionError, BrokenPipe):
+			handle_disconnect(sock, addr)
+			break
 		
 
 #NEED TO SCRUB SQL
@@ -76,8 +93,10 @@ def verifyUser(data, sqlConnection):
 	except argon2.exceptions.VerifyMismatchError:
 		#Toggle for logging passwords, this would only be incorrect passwords
 		logger.info('Rejected Credentials {0} {1}'.format(userName, password))
+	except pymysql.err.ProgrammingError as e:
+		logger.error('SQL Table doesnt exist')
 	except pymysql.err.DatabaseError as e:
-		print("sql error in verifyUser")
+		logger.error('SQL Error')
 	finally:
 		cursor.close ()
 
@@ -93,16 +112,7 @@ def broadcast_msg(msg):
 		for q in sendQueues.values():
 			q.put(msg)
 
-def handle_client_send(sock, q, addr):
-	""" Monitor queue for new messages, send them to client as they arrive """
-	while True:
-		msg = q.get()
-		if msg == None: break
-		try:
-			photoshare.send_msg(sock, msg)
-		except (ConnectionError, BrokenPipe):
-			handle_disconnect(sock, addr)
-			break
+
 
 
 def handle_disconnect(sock, addr):
@@ -133,9 +143,9 @@ def executeSQL(sqlConnection, sql):
             # your changes.
 			sqlConnection.commit()
 			result = cursor.fetchall()
-			for row in result:
-				print("found a row")
 			cursor.close ()
+			if result:
+				return result
 	except BaseException as e:
 		print("something went wrong")
 
@@ -198,6 +208,11 @@ def handleDatabaseConnect(type):
 	try:
 		if (type == 'Connect'):
 			sqlConnection = pymysql.connect(host='localhost', user='root', password='Idagl00w',	db='photoshare', charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+			#Check if both tables exist
+			tables = executeSQL(sqlConnection, 'show tables')
+			if (not tables) or (len(tables) != 2):			#Missing one or both tables
+				logger.error('SQL Table doesnt exist')
+				closeApp()
 			logger.info('Connected to database')
 			return sqlConnection
 		elif (type == 'Setup'):
@@ -227,9 +242,14 @@ if __name__ == '__main__':
 	
 	sqlConnection = handleDatabaseConnect("Connect")
 	#Start import process
-	#createNewUser(sqlConnection)
+	createNewUser(sqlConnection)
 
-	listenSock = photoshare.createListenSocket(HOST, PORT)
+	try:
+		listenSock = photoshare.createListenSocket(HOST, PORT)
+	except OSError as e:
+		if e.args[0] == 98:
+			logger.error("Address already in use")
+			closeApp()
 	addr = listenSock.getsockname()
 	print('Listening on {}'.format(addr))
 	while True:

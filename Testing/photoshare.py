@@ -48,7 +48,7 @@ def receiveMessages(sock):
 	version = sock.read(2)
 	type = sock.read(2)
 	length = sock.read(2)
-	recvd = sock.read(int(length))
+	recvd = sock.read(int(length))			#Catches value error above in case this is empty, is this the best way to do it?
 
 	receivedMessage = psMessage(bigOrLittleEndian, version, type, length, recvd)
 	

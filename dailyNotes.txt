@@ -39,3 +39,20 @@ need to convert photoshare app to bytearray so I can properly pack data
 may 16th
 
 setup proper branch and git cmd line use
+was using bytes already
+handling long username and passwords now
+
+may 25th
+
+need to generate token to be used for existing session
+can place it at the beginning of data 
+
+Needs to check for both valid database but also that tables exist
+
+trying to decipher why my receive messages thread is getting an empty packet, it looks like the fin, fin ack, but it doesnt make sense why it would get that
+check if client crashing sends the fin fin ack
+
+May 29th
+
+Client crashing was sending fin, ack
+catching value error above prevents the server from crashing
