@@ -41,16 +41,14 @@ def prepareMessage(header, message):
 	return message
 
 def receiveMessages(sock):
-	""" Receive data and break into complete messages on null byte
-	delimiter. Block until at least one message received, then
-	return received messages """
-	bigOrLittleEndian = sock.read(1)
-	version = sock.read(2)
-	type = sock.read(2)
-	length = sock.read(2)
-	recvd = sock.read(int(length))			#Catches value error above in case this is empty, is this the best way to do it?
+	""" Receive data and parse into appropiate container """
+	endian = sock.read(1).decode('utf-8')
+	version = float(sock.read(1).decode('utf-8') + "." + sock.read(1).decode('utf-8'))
+	type = int(sock.read(2).decode('utf-8'))
+	length = int(sock.read(2).decode('utf-8'))
+	recvd = sock.read(length).decode('utf-8')		#Catches value error above in case this is empty, is this the best way to do it?
 
-	receivedMessage = psMessage(bigOrLittleEndian, version, type, length, recvd)
+	receivedMessage = psMessage(endian, version, type, length, recvd)
 	
 	receivedMessage.print()
 	if not receivedMessage:
@@ -69,15 +67,34 @@ def send_msg(sock, message):
 	#data = prep_msg(msg)
 	sock.sendall(message)
 
+class psUtil:
+	def __init__(self, endian, version):
+		self.endian = endian			#String
+		self.version = version			#Float
 
-	#Endian			1 Bit; 0 = Little, 1 = Big
-	#Version		8 Bits;	0-255
-	#Instruction	4 Bits; 0-15; 0 = Handshake, 1 = Pull, 2 = Push
-	#Length			8 Bits
+	def createMessage(self, instruction, length, data):
+		newMsg = psMessage(self.endian, self.version, instruction, length, data)	
+		newMsg.print()
+		msg = newMsg.getByteString()
+		return msg
+
+	
+
+	#Endian			1 Byte; 0 = Little, 1 = Big
+	#Version		8 Bytes;	0-255
+	#Instruction	4 Bytes; 0 = Handshake, 1 = Pull, 2 = Push, 99 = Error
+	#Length			8 Bytes
 class psMessage:
 	def __init__(self, endian, version, instruction, length, data):
 		#Create object from either strings, or byte code. 
 		#Essentially overloading the constructor
+		self.endian = endian
+		self.version = version
+		self.instruction = instruction
+		self.data = data
+		self.length = length
+		
+		'''
 		try:
 			self.endian = endian.encode('utf-8')
 			self.version = version.encode('utf-8')
@@ -90,6 +107,7 @@ class psMessage:
 			self.instruction = instruction
 			self.data = data
 			self.length = length
+			'''
 		
 
 	def fromString(self, endian, version, instruction, data):
@@ -107,37 +125,47 @@ class psMessage:
 		self.length = length
 
 	def print(self):
-		print("Endian: {}".format(self.formatEndian()))
-		print("Version: {}".format(self.formatVersion()))
-		print("Instruction: {}".format(self.formatInstruction()))
-		print("Length: {} Bytes".format(self.formatLength()))
-		print("Data: {}".format(self.data))
+		print("+===============================================+")
+		print("| Endian		|	{}							|".format(self.formatEndian()))
+		print("| Version		|	{}							|".format(self.formatVersion()))
+		print("| Instruction	|	{}					|".format(self.formatInstruction()))
+		print("| Length		|	{} Bytes					|".format(self.length))
+		print("+===============================================+")
+		print("| Data			|	{}					|".format(self.data))
+		print("+===============================================+")
 
 
 	def getByteString(self):
-		message = bytes()
-		message += self.endian			#Endian Type
-		message += self.version			#Version
-		message += self.instruction		#Type of Message (New Client, Request Update, Push update)
-		message += self.length		#Length of message
-		message += self.data			#Message
+		version = self.formatVersion()
+		instruction = self.padZero(self.instruction)
+		length = self.padZero(self.length)
 		
-		print(message)
+		message = bytes()
+		message += self.endian.encode('utf-8')			#Endian Type
+		message += version.encode('utf-8')				#Version
+		message += instruction.encode('utf-8')			#Type of Message (New Client, Request Update, Push update, Error)
+		message += length.encode('utf-8')				#Length of message
+		message += self.data.encode('utf-8')			#Message
 		return message
 
 	def formatInstruction(self):
 		#00 Handshake
 		#01 Request Update
 		#02 Push Update
-		i = str(self.instruction)
-		i = i[2] + i[3]
-		if i == '00':
+		i = self.instruction
+		
+		if i == 0:
 			return "Handshake"
-		elif i == '01':
+		elif i == 1:
 			return "Pull"
-		elif i == '02':
+		elif i == 2:
 			return "Push"
+		elif i == 99:
+			return "Error"
 
+	def formatData(self):
+		strVal = str(self.data)
+		return strVal
 	
 	def formatLength(self):
 		strVal = str(self.length)
@@ -145,10 +173,16 @@ class psMessage:
 
 	def formatVersion(self):
 		strVal = str(self.version)
-		return strVal[2] + '.' + strVal[3]
+		return strVal[0] + strVal[2]
 
 	def formatEndian(self):
 		if self.endian == b'l':
-			return "little"
+			return "Little"
 		else:	# b'b'
-			return "big"
+			return "Big"
+
+	@staticmethod
+	def padZero(data):
+		if data < 10:
+			return f'{data:02}'
+		return str(data)

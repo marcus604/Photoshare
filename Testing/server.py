@@ -1,4 +1,5 @@
 from photoshare import psMessage
+from photoshare import psUtil
 import photoshare
 import ssl
 import threading, queue
@@ -11,7 +12,8 @@ import time
 import logging
 
 ENDIAN = 'b'
-VERSION = photoshare.VERSION
+VERSION = 0.1
+ps = ''
 HOST = ''
 PORT = 1428
 sendQueues = {}
@@ -19,6 +21,7 @@ lock = threading.Lock()
 userName = 'Marcus'
 passwd = 'hi'
 TOKEN_SIZE = 32
+
 
 #logging.basicConfig(level=logging.INFO)
 logging.basicConfig(filename='photoshare.log',level=logging.DEBUG)
@@ -40,15 +43,22 @@ def handleClientConnect(sock, addr, sqlConnection):
 		except (EOFError, ConnectionError, ValueError):
 			handle_disconnect(sock, addr)
 			break
-		if msgs.formatInstruction() == 'Handshake':		#00
-			if not verifyUser(msgs.data, sqlConnection):
+		if msgs.instruction == 0:		#Handshake
+			if not verifyUser(msgs.data, sqlConnection):		#Failed Login
+				data = "Invalid Username/Password"
+				length = len(data)
+				msg = ps.createMessage(99, length, data)	
+				broadcast_msg(msg)
+				msgs = photoshare.receiveMessages(sock)
+
 				handle_disconnect(sock, addr)
 				break
 			#Valid User
 			#Generate Token to send back to user
 			token = secrets.token_hex(TOKEN_SIZE)
-			newMsg = photoshare.psMessage(ENDIAN, VERSION, '00', TOKEN_SIZE, token)
-			msg = newMsg.getByteString()
+			tokenLength = len(token)
+			msg = ps.createMessage(0, tokenLength, token)
+			testData = msg.formatData()
 			broadcast_msg(msg)
 		elif msgs.formatInstruction() == 'Pull':		#01
 			print("Pull")
@@ -71,8 +81,7 @@ def handle_client_send(sock, q, addr):
 def verifyUser(data, sqlConnection):
 	#Parse Username and password from given data
 	#Connect to database and 
-	str = data.decode('utf-8')
-	parts = str.split(':', maxsplit=1)
+	parts = data.split(':', maxsplit=1)
 	userName = parts[0]
 	password = parts[1]
 	#Connect to DB and find given user
@@ -156,6 +165,7 @@ def createDBandTables(sqlConnection):
 	executeSQL(sqlConnection, 'CREATE TABLE `photoshare`.`photos` ( `md5Hash` VARCHAR(255) NOT NULL , `Make` VARCHAR(255) , `Model` VARCHAR(255) , `LensModel` VARCHAR(255) , `Flash` VARCHAR(255) , `DateTime` VARCHAR(255) , `ISO` VARCHAR(255) , `Aperture` VARCHAR(255) , `FocalLength` VARCHAR(255) , `Width` VARCHAR(255) , `Height` VARCHAR(255) , `ExposureTime` VARCHAR(255) , `Sharpness` VARCHAR(255) , `Type` VARCHAR(255) , `Dir` VARCHAR(255) NOT NULL , PRIMARY KEY (`md5Hash`(255)));')
 
 #Need to check for SQL injection
+#Need to change print statements to log
 def createNewUser(sqlConnection):
 	ph = PasswordHasher()
 	userNameValid = False
@@ -242,7 +252,12 @@ if __name__ == '__main__':
 	
 	sqlConnection = handleDatabaseConnect("Connect")
 	#Start import process
-	createNewUser(sqlConnection)
+	#createNewUser(sqlConnection)
+
+	ps = psUtil(ENDIAN, VERSION)
+	data = "hihihihih"
+	length = len(data)
+	msg = ps.createMessage(0, length, data)
 
 	try:
 		listenSock = photoshare.createListenSocket(HOST, PORT)
