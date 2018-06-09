@@ -50,5 +50,9 @@ Thumbs.db
 /lib/
 /lib64/
 /share/
-
+/dailyNotes.txt
+dailyNotes.txt
+*.key
+*.crt
+To Do
 
