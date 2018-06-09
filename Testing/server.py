@@ -18,6 +18,8 @@ sendQueues = {}
 lock = threading.Lock()
 userName = 'Marcus'
 passwd = 'hi'
+SQL_USER = 'root'
+SQL_PASSWORD = 'thisIsMySQLPassword'
 
 #logging.basicConfig(level=logging.INFO)
 logging.basicConfig(filename='photoshare.log',level=logging.DEBUG)
@@ -197,11 +199,11 @@ def handleDatabaseConnect(type):
 	#Valid and connected DB
 	try:
 		if (type == 'Connect'):
-			sqlConnection = pymysql.connect(host='localhost', user='root', password='Idagl00w',	db='photoshare', charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+			sqlConnection = pymysql.connect(host='localhost', user='root', password='thisIsMySQLPassword',	db='photoshare', charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 			logger.info('Connected to database')
 			return sqlConnection
 		elif (type == 'Setup'):
-			sqlConnection = pymysql.connect(host='localhost', user='root', password='Idagl00w',	charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+			sqlConnection = pymysql.connect(host='localhost', user='root', password='thisIsMySQLPassword',	charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 			logger.info("Creating Database")
 			return sqlConnection
 	
