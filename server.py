@@ -21,6 +21,8 @@ lock = threading.Lock()
 userName = 'Marcus'
 passwd = 'hi'
 TOKEN_SIZE = 32
+SQL_USERNAME = 'root'
+SQL_PASSWORD = 'thisIsMySQLPassword'
 
 
 #logging.basicConfig(level=logging.INFO)
@@ -48,9 +50,7 @@ def handleClientConnect(sock, addr, sqlConnection):
 				data = "Invalid Username/Password"
 				length = len(data)
 				msg = ps.createMessage(99, length, data)	
-				broadcast_msg(msg)
-				msgs = photoshare.receiveMessages(sock)
-
+				broadcast_msg(msg)				
 				handle_disconnect(sock, addr)
 				break
 			#Valid User
@@ -196,15 +196,18 @@ def createNewUser(sqlConnection):
 	hash = ph.hash(password + salt)
 	try:
 		with sqlConnection.cursor() as cursor:
-			sql = 'INSERT INTO `photoshare`.`users` (`UserName`, `Password`, `Salt`) VALUES (%s, %s, %s)'
+			sql = 'INSERT INTO `photoshare`.`users` (`UserName`, `Password`, `Salt`) VALUES (%s, %s, %s);'
 			cursor.execute(sql, (userName, hash, salt,))
+			sqlConnection.commit()
 			logger.info('New user {0}'.format(userName))
 	except pymysql.err.IntegrityError:
 		print("User {0} already exists".format(userName))
 		logger.debug("Rejected DuplicateUser {0}".format(userName))
 		createNewUser(sqlConnection)
-	except pymysql.err as e:
+	except pymysql.err.DataError as e:
 		logger.error('Failed to create new user {0}'.format(userName))
+	
+
 	
 def closeApp():
 	logger.info("Exiting Photoshare")
@@ -217,16 +220,16 @@ def handleDatabaseConnect(type):
 	#Valid and connected DB
 	try:
 		if (type == 'Connect'):
-			sqlConnection = pymysql.connect(host='localhost', user='root', password='Idagl00w',	db='photoshare', charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+			sqlConnection = pymysql.connect(host='localhost', user=SQL_USERNAME, password=SQL_PASSWORD,	db='photoshare', charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 			#Check if both tables exist
 			tables = executeSQL(sqlConnection, 'show tables')
 			if (not tables) or (len(tables) != 2):			#Missing one or both tables
 				logger.error('SQL Table doesnt exist')
-				closeApp()
+				raise pymysql.err.InternalError
 			logger.info('Connected to database')
 			return sqlConnection
 		elif (type == 'Setup'):
-			sqlConnection = pymysql.connect(host='localhost', user='root', password='Idagl00w',	charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+			sqlConnection = pymysql.connect(host='localhost', user=SQL_USERNAME, password=SQL_PASSWORD,	charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 			logger.info("Creating Database")
 			return sqlConnection
 	
@@ -242,6 +245,7 @@ def handleDatabaseConnect(type):
 			sqlConnection = handleDatabaseConnect('Setup')
 			createDBandTables(sqlConnection)
 			createNewUser(sqlConnection)
+			return sqlConnection
 		else:
 			closeApp()
 
@@ -252,12 +256,12 @@ if __name__ == '__main__':
 	
 	sqlConnection = handleDatabaseConnect("Connect")
 	#Start import process
-	#createNewUser(sqlConnection)
+	createNewUser(sqlConnection)
 
-	ps = psUtil(ENDIAN, VERSION)
+	""" ps = psUtil(ENDIAN, VERSION)
 	data = "hihihihih"
 	length = len(data)
-	msg = ps.createMessage(0, length, data)
+	msg = ps.createMessage(0, length, data) """
 
 	try:
 		listenSock = photoshare.createListenSocket(HOST, PORT)
@@ -267,6 +271,7 @@ if __name__ == '__main__':
 			closeApp()
 	addr = listenSock.getsockname()
 	print('Listening on {}'.format(addr))
+	logger.info('Listening on {}'.format(addr))
 	while True:
 		clientSock, addr = listenSock.accept()
 		try:

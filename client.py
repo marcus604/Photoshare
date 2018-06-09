@@ -5,13 +5,14 @@ from photoshare import psUtil
 import time
 from argon2 import PasswordHasher
 import logging
+import os, errno
 
 from pprint import pprint
 
 ENDIAN = 'b'
 VERSION = 0.1
 ps = ''
-TARGET_HOST = sys.argv[-1] if len(sys.argv) > 1 else '10.10.10.5'
+TARGET_HOST = sys.argv[-1] if len(sys.argv) > 1 else 'localhost'
 TARGET_PORT = photoshare.PORT
 sendQueues = {}
 lock = threading.Lock()
@@ -107,20 +108,16 @@ def loginToServer(sslSock):
 		sock.close()
 		
 	
-
+def handleClientDisconnect(sock):
+	sock.close()
+	os._exit(0)
 	
-
-
-if __name__ == '__main__':
-	#Am I configured to connect to a server?
-	validToken = False
-	ps = psUtil(ENDIAN, VERSION)
+def establishConnection():
 	sock = socket.socket()
 	sslSock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED, ssl_version=ssl.PROTOCOL_SSLv23, ca_certs=CA_CERT_PATH)	#SSLv23 supports 
-
 	targetHost = TARGET_HOST
 	targetPort = TARGET_PORT
-	
+
 	sslSock.connect((targetHost, int(targetPort)))
 
 	cert = sslSock.getpeercert()
@@ -131,11 +128,22 @@ if __name__ == '__main__':
 
 	while not validToken:
 		print("Invalid Username/Password")
-		LOGINUSERNAME = input("Enter Username: ")
-		LOGINPASSWORD = input("Enter Password: ")
-		validToken = loginToServer(sslSock)
-		
+		if input("Try Again: y/n ") == 'y':
+			LOGINUSERNAME = input("Enter Username: ")
+			LOGINPASSWORD = input("Enter Password: ")
+			establishConnection()
+		else:
+			handleClientDisconnect(sslSock)
+	
+	return sslSock, validToken
 
+if __name__ == '__main__':
+	#Am I configured to connect to a server?
+	validToken = False
+	ps = psUtil(ENDIAN, VERSION)
+	
+
+	sock, token = establishConnection()
 	
 	#newMessage = photoshare.psMessage(ENDIAN, VERSION, '00', 20, data)
 	#msg = newMessage.getBytes()
