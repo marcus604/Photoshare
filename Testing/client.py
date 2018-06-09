@@ -1,27 +1,37 @@
 import sys, socket, threading, queue
 import ssl
 import photoshare
+from photoshare import psUtil
 import time
 from argon2 import PasswordHasher
+import logging
 
 from pprint import pprint
 
 ENDIAN = 'b'
-VERSION = photoshare.VERSION
-TARGET_HOST = sys.argv[-1] if len(sys.argv) > 1 else '10.10.10.6'
+VERSION = 0.1
+ps = ''
+TARGET_HOST = sys.argv[-1] if len(sys.argv) > 1 else '10.10.10.5'
 TARGET_PORT = photoshare.PORT
 sendQueues = {}
 lock = threading.Lock()
 CA_CERT_PATH = 'server.crt'
 POLLING_TIME = 60
 
+logging.basicConfig(filename='client.log',level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+LOGINUSERNAME = 'anddddy'
+LOGINPASSWORD = 'hi'
+
 def handleClientSend(sock, q):
 	""" Monitor queue for new messages, send them to client as they arrive """
 	while True:
 		msg = q.get()
 		newMessage = photoshare.psMessage(ENDIAN, VERSION, '00', '00', '00')
+		print(newMessage)
 		msg = newMessage.getBytes()
-		print(newMessageByteString)
+		
 		
 		if msg == None: 
 			print("no messages to send")
@@ -54,25 +64,25 @@ def loginToServer(sslSock):
 	
 	
 	
-	userName = 'andy'
+	userName = LOGINUSERNAME
 	userNameLen = len(userName)
 	if userNameLen > 40:
 		logger.info("Rejected Username too long")
 	
-	password = 'hi'
+	password = LOGINPASSWORD
 	passwordLen = len(password)
 	if passwordLen > 64:
 		logger.info("Rejected password too long")
 
 	data = userName + ':' + password
 	length = len(data)
-	if length < 10:
-		length = (f'{length:02}')
 
+	msg = ps.createMessage(0, length, data)
 	
 
-	newMsg = photoshare.psMessage(ENDIAN, VERSION, '00', length, data)
-	msg = newMsg.getByteString()
+	#newMsg = photoshare.psMessage(ENDIAN, VERSION, '00', length, data)
+
+	
 
 	
 	try:
@@ -80,12 +90,31 @@ def loginToServer(sslSock):
 	except (ConnectionError, BrokenPipe):
 		print("WRONG")
 
+	try:
+		#blocks
+		msg = photoshare.receiveMessages(sslSock)
+		if msg.instruction == 99:
+			logger.info("Rejected Credentials yeah")
+			return False
+		else:
+			return True
+		if msg == None:
+			print("no messages to be received")
+		for msg in msg:
+			print(msg)
+	except ConnectionError:
+		print('Connection to server closed')
+		sock.close()
+		
+	
+
 	
 
 
 if __name__ == '__main__':
 	#Am I configured to connect to a server?
-
+	validToken = False
+	ps = psUtil(ENDIAN, VERSION)
 	sock = socket.socket()
 	sslSock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED, ssl_version=ssl.PROTOCOL_SSLv23, ca_certs=CA_CERT_PATH)	#SSLv23 supports 
 
@@ -97,8 +126,15 @@ if __name__ == '__main__':
 	cert = sslSock.getpeercert()
 	#if not cert or ssl.match_hostname(cert, targetHost):
 	#	raise Exception("Invalid host for cert")
+	
+	validToken = loginToServer(sslSock)
 
-	loginToServer(sslSock)
+	while not validToken:
+		print("Invalid Username/Password")
+		LOGINUSERNAME = input("Enter Username: ")
+		LOGINPASSWORD = input("Enter Password: ")
+		validToken = loginToServer(sslSock)
+		
 
 	
 	#newMessage = photoshare.psMessage(ENDIAN, VERSION, '00', 20, data)

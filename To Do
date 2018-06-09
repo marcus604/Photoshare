@@ -5,3 +5,19 @@ Import:
 shouldnt copy the file until it tries to import it into database
 if duplicate exists im overwriting it
 
+
+Protocol:
+
+****Need to send back something when credentials are bad, currently the server just disconnects and sends fin, ack
+Client could be told to handle the exception but instead server should respond to give client a second (third?) chance to try again
+
+
+SQL:
+
+sql not proplery inserting into ubuntu mysql
+
+
+Misc:
+
+If any password is input it should be hidden when typing out
+
