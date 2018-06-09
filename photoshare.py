@@ -125,14 +125,14 @@ class psMessage:
 		self.length = length
 
 	def print(self):
-		print("+===============================================+")
-		print("| Endian		|	{}							|".format(self.formatEndian()))
-		print("| Version		|	{}							|".format(self.formatVersion()))
-		print("| Instruction	|	{}					|".format(self.formatInstruction()))
-		print("| Length		|	{} Bytes					|".format(self.length))
-		print("+===============================================+")
-		print("| Data			|	{}					|".format(self.data))
-		print("+===============================================+")
+		print("+================================================+")
+		print("| 	Endian		|	{}		|".format(self.formatEndian()))
+		print("| 	Version		|	{}		|".format(self.formatVersion()))
+		print("| 	Instruction	|	{}	|".format(self.formatInstruction()))
+		print("| 	Length		|	{} Bytes	|".format(self.length))
+		print("+===========================================================================================================+")
+		print("| 	Data		|	{}			".format(self.data))
+		print("+===========================================================================================================+")
 
 
 	def getByteString(self):

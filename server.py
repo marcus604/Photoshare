@@ -260,7 +260,7 @@ if __name__ == '__main__':
 	#createNewUser(sqlConnection)
 
 	ps = psUtil(ENDIAN, VERSION)
-	""" data = "hihihihih"
+	""" data = "99ba68146beb85547d2344744020d833272a800ca66d0c7098cdbd76ccdb1bcf"
 	length = len(data)
 	msg = ps.createMessage(0, length, data)  """
 
