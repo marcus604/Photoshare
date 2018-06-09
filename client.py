@@ -22,8 +22,10 @@ POLLING_TIME = 60
 logging.basicConfig(filename='client.log',level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-LOGINUSERNAME = 'anddddy'
+LOGINUSERNAME = 'andy'
 LOGINPASSWORD = 'hi'
+
+SESSION_TOKEN = ''
 
 def handleClientSend(sock, q):
 	""" Monitor queue for new messages, send them to client as they arrive """
@@ -95,9 +97,11 @@ def loginToServer(sslSock):
 		#blocks
 		msg = photoshare.receiveMessages(sslSock)
 		if msg.instruction == 99:
-			logger.info("Rejected Credentials yeah")
+			logger.info("Rejected Credentials")
 			return False
-		else:
+		elif msg.instruction == 0:
+			global SESSION_TOKEN
+			SESSION_TOKEN = msg.data			
 			return True
 		if msg == None:
 			print("no messages to be received")
