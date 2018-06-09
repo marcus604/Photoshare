@@ -129,6 +129,7 @@ def establishConnection():
 	while not validToken:
 		print("Invalid Username/Password")
 		if input("Try Again: y/n ") == 'y':
+			global LOGINUSERNAME, LOGINPASSWORD
 			LOGINUSERNAME = input("Enter Username: ")
 			LOGINPASSWORD = input("Enter Password: ")
 			establishConnection()

@@ -138,6 +138,7 @@ def handle_disconnect(sock, addr):
 		del sendQueues[fd]
 		addr = sock.getpeername()
 		print('Client {} disconnected'.format(addr))
+		logger.info('Client {} disconnected'.format(addr))
 		sock.close()
 
 
@@ -256,12 +257,12 @@ if __name__ == '__main__':
 	
 	sqlConnection = handleDatabaseConnect("Connect")
 	#Start import process
-	createNewUser(sqlConnection)
+	#createNewUser(sqlConnection)
 
-	""" ps = psUtil(ENDIAN, VERSION)
-	data = "hihihihih"
+	ps = psUtil(ENDIAN, VERSION)
+	""" data = "hihihihih"
 	length = len(data)
-	msg = ps.createMessage(0, length, data) """
+	msg = ps.createMessage(0, length, data)  """
 
 	try:
 		listenSock = photoshare.createListenSocket(HOST, PORT)
