@@ -64,9 +64,6 @@ def handleClientReceive(sock):
 def loginToServer(sslSock):
 	#Get Username and password
 	#Username cannot have ':' character
-	
-	
-	
 	userName = LOGINUSERNAME
 	userNameLen = len(userName)
 	if userNameLen > 40:
@@ -81,13 +78,7 @@ def loginToServer(sslSock):
 	length = len(data)
 
 	msg = ps.createMessage(0, length, data)
-	
-
-	#newMsg = photoshare.psMessage(ENDIAN, VERSION, '00', length, data)
-
-	
-
-	
+		
 	try:
 		photoshare.send_msg(sslSock, msg)
 	except (ConnectionError, BrokenPipe):
@@ -103,10 +94,8 @@ def loginToServer(sslSock):
 			global SESSION_TOKEN
 			SESSION_TOKEN = msg.data			
 			return True
-		if msg == None:
+		if msg == None:		#Needs to be handled
 			print("no messages to be received")
-		for msg in msg:
-			print(msg)
 	except ConnectionError:
 		print('Connection to server closed')
 		sock.close()
@@ -117,6 +106,12 @@ def handleClientDisconnect(sock):
 	os._exit(0)
 	
 def establishConnection():
+	#Create and wraps socket for SSL
+	#Verifies cert is matching
+	#If credentials are wrong, prompts user to try again
+	#Server should sever and refuse requests to avoid brute force
+	#Need to make sure client handles being rejected ok
+	#returns session token
 	sock = socket.socket()
 	sslSock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED, ssl_version=ssl.PROTOCOL_SSLv23, ca_certs=CA_CERT_PATH)	#SSLv23 supports 
 	targetHost = TARGET_HOST
@@ -150,13 +145,15 @@ if __name__ == '__main__':
 
 	sock, token = establishConnection()
 	
-	#newMessage = photoshare.psMessage(ENDIAN, VERSION, '00', 20, data)
-	#msg = newMessage.getBytes()
 
+	data = ""
+	length = len(data)
+	msg = ps.createMessage(0, length, data) 
+	
 	
 		
 	#Loop indefinitely to receive messages from server
-	while True:
+	""" while True:
 		try:
 			#blocks
 			msgs = photoshare.receiveMessages(sslSock)
@@ -167,7 +164,7 @@ if __name__ == '__main__':
 		except ConnectionError:
 			print('Connection to server closed')
 			sock.close()
-			break
+			break """
 	
 		
 		#q = queue.Queue()

@@ -58,7 +58,6 @@ def handleClientConnect(sock, addr, sqlConnection):
 			token = secrets.token_hex(TOKEN_SIZE)
 			tokenLength = len(token)
 			msg = ps.createMessage(0, tokenLength, token)
-			
 			broadcast_msg(msg)
 		elif msgs.instruction == 1:		#01
 			print("first ask?")
