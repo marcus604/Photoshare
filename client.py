@@ -123,9 +123,9 @@ def establishConnection():
 	#if not cert or ssl.match_hostname(cert, targetHost):
 	#	raise Exception("Invalid host for cert")
 	
-	validToken = loginToServer(sslSock)
+	validLogin = loginToServer(sslSock)
 
-	while not validToken:
+	while not validLogin:
 		print("Invalid Username/Password")
 		if input("Try Again: y/n ") == 'y':
 			global LOGINUSERNAME, LOGINPASSWORD
@@ -135,28 +135,32 @@ def establishConnection():
 		else:
 			handleClientDisconnect(sslSock)
 	
-	return sslSock, validToken
+	return sslSock, validLogin
 
 if __name__ == '__main__':
 	#Am I configured to connect to a server?
-	validToken = False
+	validLogin = False
 	ps = psUtil(ENDIAN, VERSION)
 	
 
 	sock, token = establishConnection()
 	
 
-	data = ""
+	data = SESSION_TOKEN + "0" #Initial Sync
 	length = len(data)
-	msg = ps.createMessage(0, length, data) 
-	
+	msg = ps.createMessage(1, length, data)
+
+	try:
+		photoshare.send_msg(sock, msg)
+	except ConnectionError as e:
+		logger.info("Connection Error")
 	
 		
 	#Loop indefinitely to receive messages from server
-	""" while True:
+	while True:
 		try:
 			#blocks
-			msgs = photoshare.receiveMessages(sslSock)
+			msgs = photoshare.receiveMessages(sock)
 			if msgs == None:
 				print("no messages to be received")
 			for msg in msgs:
@@ -164,7 +168,7 @@ if __name__ == '__main__':
 		except ConnectionError:
 			print('Connection to server closed')
 			sock.close()
-			break """
+			break 
 	
 		
 		#q = queue.Queue()

@@ -20,7 +20,7 @@ sendQueues = {}
 lock = threading.Lock()
 userName = 'Marcus'
 passwd = 'hi'
-TOKEN_SIZE = 32
+TOKEN_SIZE = 8
 SQL_USERNAME = 'root'
 SQL_PASSWORD = 'thisIsMySQLPassword'
 
@@ -36,17 +36,19 @@ def NoUserFoundError(Exception):
 
 
 def handleClientConnect(sock, addr, sqlConnection):
-	""" Receive messages from client and broadcast them to
-	other clients until client disconnects """
+	""" Client Session """
 	rest = bytes()
+	clientIP = addr[0]
+	token = ''
 	while True:
 		try:
-			msgs = photoshare.receiveMessages(sock)
+			msg = photoshare.receiveMessages(sock)
 		except (EOFError, ConnectionError, ValueError):
+			logger.info("Connection Error")
 			handle_disconnect(sock, addr)
 			break
-		if msgs.instruction == 0:		#Handshake
-			if not verifyUser(msgs.data, sqlConnection):		#Failed Login
+		if msg.instruction == 0:		#Handshake
+			if not verifyUser(msg.data, sqlConnection):		#Failed Login
 				data = "Invalid Username/Password"
 				length = len(data)
 				msg = ps.createMessage(99, length, data)	
@@ -59,10 +61,18 @@ def handleClientConnect(sock, addr, sqlConnection):
 			tokenLength = len(token)
 			msg = ps.createMessage(0, tokenLength, token)
 			broadcast_msg(msg)
-		elif msgs.instruction == 1:		#01
+			continue
+		
+		else:	#If its not trying to connect it must already have a valid connection
+			if addr[0] != clientIP and msg.data[:(TOKEN_SIZE * 2)] != token:	#Grabs the token stored at the begenning of the data
+				logger.info("Unauthorized Connection")
+				handle_disconnect(sock, addr)
+	
+			
+		if msg.instruction == 1:		#01
 			print("first ask?")
 			print("Pull")
-		elif msgs.formatInstruction() == 'Push':		#02
+		elif msg.instruction == 2:		#02
 			print("push")
 
 def handle_client_send(sock, q, addr):
@@ -75,7 +85,9 @@ def handle_client_send(sock, q, addr):
 		except (ConnectionError, BrokenPipe):
 			handle_disconnect(sock, addr)
 			break
-		
+
+""" def handleSessions():
+	#Monitor  """
 
 #NEED TO SCRUB SQL
 def verifyUser(data, sqlConnection):
