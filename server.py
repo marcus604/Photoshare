@@ -10,6 +10,7 @@ import os, errno
 import secrets
 import time
 import logging
+import csv
 
 ENDIAN = 'b'
 VERSION = 0.1
@@ -68,12 +69,38 @@ def handleClientConnect(sock, addr, sqlConnection):
 				logger.info("Unauthorized Connection")
 				handle_disconnect(sock, addr)
 	
+		if msg.instruction == 1:		#Initial DB Sync
+			initialSync(sock, sqlConnection)
 			
-		if msg.instruction == 1:		#01
-			print("first ask?")
-			print("Pull")
 		elif msg.instruction == 2:		#02
 			print("push")
+
+def initialSync(sock, sqlConnection):
+	#Is the database populated?
+	logger.info("Starting Initial Sync")
+
+	#Generate CSV file of Photos table
+	try:
+		with sqlConnection.cursor() as cursor:
+			sql = "SELECT * FROM photos"
+			cursor.execute(sql)
+			if cursor.rowcount == 0:	#Database is empty	
+				logger.info("No Photos in Database")
+			results = cursor.fetchall()
+			with open('photos.csv', 'w', newline='') as fileHandle:
+				writer = csv.writer(fileHandle)
+				writer.writerow([x[0] for x in cursor.description])  # column headers				
+				writer.writerows(cursor._result.rows)
+				#for row in results:
+				#	writer.writerow(row)
+			return True
+	except pymysql.err.ProgrammingError as e:
+		logger.error('SQL Table doesnt exist')
+	except pymysql.err.DatabaseError as e:
+		logger.error('SQL Error')
+	finally:
+		cursor.close ()
+	
 
 def handle_client_send(sock, q, addr):
 	""" Monitor queue for new messages, send them to client as they arrive """

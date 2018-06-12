@@ -73,8 +73,8 @@ def getExistingHashes(sqlConnection):
 def connectSQL():
     return pymysql.connect(host='localhost',
                              user='root',
-                             password='Idagl00w',
-                             db='photos',
+                             password='thisIsMySQLPassword',
+                             db='photoshare',
                              charset='utf8mb4',
                              cursorclass=pymysql.cursors.DictCursor)
 
@@ -82,7 +82,7 @@ def connectSQL():
 startTime = time.time()
 
 #CONSTANTS
-imageExtensions=[".jpg", ".png", ".tiff", ".gif"]
+imageExtensions=[".jpg", ".png", ".tiff", ".gif", ".jpeg"]
 videoExtensions=[".mp4", ".mov", ".avi", ".mkv"]
 
 #Logging Variables
@@ -124,7 +124,7 @@ except NoFilesToImport:
 try:
     connection = pymysql.connect(host='localhost',
                              user='root',
-                             password='Idagl00w',
+                             password='thisIsMySQLPassword',
                              db='photoshare',
                              charset='utf8mb4',
                              cursorclass=pymysql.cursors.DictCursor)
@@ -172,7 +172,11 @@ for photoPath in file_list:
 
     f = open(photoPath, "rb")
 
-    tags = exifread.process_file(f)
+    try:
+        tags = exifread.process_file(f)
+    except OSError as e:
+        print(e)
+        print(photoPath)
     
     #Collect necessary EXIF Data, cast all of it to a string
     photoPath = str(photoPath)
@@ -182,7 +186,7 @@ for photoPath in file_list:
     for tag in exifTags:
         try:
             exifValues.append(str(tags[tag]))
-        except KeyError:
+        except (KeyError, NameError):
             exifValues.append("")
     
     #Extract year/month/day from exif data, if no date available, use todays

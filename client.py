@@ -146,7 +146,7 @@ if __name__ == '__main__':
 	sock, token = establishConnection()
 	
 
-	data = SESSION_TOKEN + "0" #Initial Sync
+	data = SESSION_TOKEN  #Initial Sync
 	length = len(data)
 	msg = ps.createMessage(1, length, data)
 
@@ -163,8 +163,6 @@ if __name__ == '__main__':
 			msgs = photoshare.receiveMessages(sock)
 			if msgs == None:
 				print("no messages to be received")
-			for msg in msgs:
-				print(msg)
 		except ConnectionError:
 			print('Connection to server closed')
 			sock.close()

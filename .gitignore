@@ -42,7 +42,6 @@ Thumbs.db
 /Import/
 /Library/
 /__pycache__/
-/Testing/__pycache__/
 /Certs/
 /.*/
 /bin/
@@ -50,6 +49,7 @@ Thumbs.db
 /lib/
 /lib64/
 /share/
+/Testing/
 /dailyNotes.txt
 dailyNotes.txt
 *.key
