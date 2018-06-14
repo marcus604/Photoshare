@@ -11,6 +11,8 @@ import secrets
 import time
 import logging
 import csv
+import gzip
+import shutil
 
 ENDIAN = 'b'
 VERSION = 0.1
@@ -83,23 +85,31 @@ def initialSync(sock, sqlConnection):
 	try:
 		with sqlConnection.cursor() as cursor:
 			sql = "SELECT * FROM photos"
-			cursor.execute(sql)
+			results = cursor.execute(sql)
 			if cursor.rowcount == 0:	#Database is empty	
 				logger.info("No Photos in Database")
-			results = cursor.fetchall()
-			with open('photos.csv', 'w', newline='') as fileHandle:
-				writer = csv.writer(fileHandle)
+			logger.debug("Syncing {} photos".format(results))
+			with gzip.open('photosCSV.gz', 'wt') as fileIn:
+				writer = csv.writer(fileIn)
 				writer.writerow([x[0] for x in cursor.description])  # column headers				
 				writer.writerows(cursor._result.rows)
-				#for row in results:
-				#	writer.writerow(row)
-			return True
 	except pymysql.err.ProgrammingError as e:
 		logger.error('SQL Table doesnt exist')
 	except pymysql.err.DatabaseError as e:
 		logger.error('SQL Error')
 	finally:
 		cursor.close ()
+
+	
+	#Check if file needs to be split up to send over network
+	f = open('photosCSV.gz', 'rb')
+	l = f.read(1024)
+	while (l):
+		print("sending")
+		broadcast_msg(l)
+		l = f.read(1024)
+	print("Done")
+
 	
 
 def handle_client_send(sock, q, addr):

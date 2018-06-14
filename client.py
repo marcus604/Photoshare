@@ -137,6 +137,18 @@ def establishConnection():
 	
 	return sslSock, validLogin
 
+def initialSync(sock):
+	f = open("photosDB.csv.gz", "wb")
+
+	l = sock.recv(1024)
+	while (l):
+		print ("receiving")
+		f.write(l)
+		l = sock.recv(1024)
+	f.close()
+	print("done")
+
+
 if __name__ == '__main__':
 	#Am I configured to connect to a server?
 	validLogin = False
@@ -150,20 +162,20 @@ if __name__ == '__main__':
 	length = len(data)
 	msg = ps.createMessage(1, length, data)
 
+	#Move this to its own thread
 	try:
 		photoshare.send_msg(sock, msg)
 	except ConnectionError as e:
 		logger.info("Connection Error")
 	
-		
+	initialSync(sock)
+
 	#Loop indefinitely to receive messages from server
 	while True:
 		try:
 			#blocks
 			msgs = photoshare.receiveMessages(sock)
-			if msgs == None:
-				print("no messages to be received")
-		except ConnectionError:
+		except (EOFError, ConnectionError, ValueError):
 			print('Connection to server closed')
 			sock.close()
 			break 
