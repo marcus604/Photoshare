@@ -1,6 +1,7 @@
 import socket
 import ssl
 import logging
+import time
 
 
 HOST = ''
@@ -9,10 +10,32 @@ VERSION = '01'
 logging.basicConfig(filename='photoshare.log',level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+START_TIME = ''		#Testing speed 
+TIME_ELAPSED = 0
+
+def startTimer():
+	global START_TIME 
+	START_TIME = time.time()
+
+def timerCheckpoint(checkpointName):
+	global START_TIME
+	global TIME_ELAPSED
+	sinceCheckpoint = time.time() - START_TIME
+	START_TIME = time.time()
+	TIME_ELAPSED = sinceCheckpoint + TIME_ELAPSED
+	print ('{0} took {1:.4f} second !'.format(checkpointName, sinceCheckpoint))
+	return sinceCheckpoint
+
+def totalTime():
+	global START_TIME
+	global TIME_ELAPSED
+	TIME_ELAPSED = (time.time() - START_TIME) + TIME_ELAPSED
+	print ('Total Time: {0:.4f}'.format(TIME_ELAPSED))
+
 #Create TCP socket, to receive connection
 def createListenSocket(host, port):
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	sock.setsockopt(socket.SOL_SOCKET, socket.TCP_NODELAY, 1)
 	sock.bind((host, port))
 	sock.listen(100)
 	return sock
@@ -37,7 +60,7 @@ def prepareMessage(header, message):
 	message += b'FFFF FFF'	#Message
 
 
-	print(message)
+	#print(message)
 	return message
 
 def receiveMessages(sock):
@@ -50,7 +73,7 @@ def receiveMessages(sock):
 
 	receivedMessage = psMessage(endian, version, type, length, recvd)
 	
-	receivedMessage.print()
+	#receivedMessage.print()
 	if not receivedMessage:
 		raise ConnectionError()
 	return receivedMessage
@@ -74,7 +97,7 @@ class psUtil:
 
 	def createMessage(self, instruction, length, data):
 		newMsg = psMessage(self.endian, self.version, instruction, length, data)	
-		newMsg.print()
+		#newMsg.print()
 		msg = newMsg.getByteString()
 		return msg
 

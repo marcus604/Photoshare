@@ -13,6 +13,7 @@ import logging
 import csv
 import gzip
 import shutil
+import cProfile
 
 ENDIAN = 'b'
 VERSION = 0.1
@@ -26,6 +27,9 @@ passwd = 'hi'
 TOKEN_SIZE = 8
 SQL_USERNAME = 'root'
 SQL_PASSWORD = 'thisIsMySQLPassword'
+BUFFER_SIZE = 16384 #32768 
+pr = cProfile.Profile()
+
 
 
 #logging.basicConfig(level=logging.INFO)
@@ -34,11 +38,25 @@ logger = logging.getLogger(__name__)
 
 
 
+
+
+
+
+	
+
 def NoUserFoundError(Exception):
 	pass
 
 
+
+
+
+
+
+
 def handleClientConnect(sock, addr, sqlConnection):
+	pr.enable()
+	startTime = time.time()
 	""" Client Session """
 	rest = bytes()
 	clientIP = addr[0]
@@ -46,6 +64,7 @@ def handleClientConnect(sock, addr, sqlConnection):
 	while True:
 		try:
 			msg = photoshare.receiveMessages(sock)
+			photoshare.timerCheckpoint("Receiving message")
 		except (EOFError, ConnectionError, ValueError):
 			logger.info("Connection Error")
 			handle_disconnect(sock, addr)
@@ -57,6 +76,7 @@ def handleClientConnect(sock, addr, sqlConnection):
 				msg = ps.createMessage(99, length, data)	
 				broadcast_msg(msg)				
 				handle_disconnect(sock, addr)
+				photoshare.timerCheckpoint("Rejecting user")
 				break
 			#Valid User
 			#Generate Token to send back to user
@@ -64,6 +84,7 @@ def handleClientConnect(sock, addr, sqlConnection):
 			tokenLength = len(token)
 			msg = ps.createMessage(0, tokenLength, token)
 			broadcast_msg(msg)
+			photoshare.timerCheckpoint("Authenticating user")
 			continue
 		
 		else:	#If its not trying to connect it must already have a valid connection
@@ -74,12 +95,34 @@ def handleClientConnect(sock, addr, sqlConnection):
 		if msg.instruction == 1:		#Initial DB Sync
 			initialSync(sock, sqlConnection)
 			
-		elif msg.instruction == 2:		#02
-			print("push")
+			
+			
+		""" elif msg.instruction == 2:		#02
+			print """
 
+
+
+
+
+
+
+
+
+
+
+#Opens DB, creates a zipped CSV of contents
+#Need to split up sync to smaller peices to help if/when connection is interupted in initial sync
+#Need to see what compression level is being asked
 def initialSync(sock, sqlConnection):
+
+	filename = 'testfile.mov'
+	#filename = 'Testing/Files/1G'
+
 	#Is the database populated?
 	logger.info("Starting Initial Sync")
+
+	#Are we resuming syncing
+	#Has the database changed since we started the initial sync
 
 	#Generate CSV file of Photos table
 	try:
@@ -88,11 +131,13 @@ def initialSync(sock, sqlConnection):
 			results = cursor.execute(sql)
 			if cursor.rowcount == 0:	#Database is empty	
 				logger.info("No Photos in Database")
+			photoshare.timerCheckpoint("Retrieving {0} photos".format(results))	
 			logger.debug("Syncing {} photos".format(results))
 			with gzip.open('photosCSV.gz', 'wt') as fileIn:
 				writer = csv.writer(fileIn)
 				writer.writerow([x[0] for x in cursor.description])  # column headers				
 				writer.writerows(cursor._result.rows)
+			photoshare.timerCheckpoint("Creating Zip of DB")
 	except pymysql.err.ProgrammingError as e:
 		logger.error('SQL Table doesnt exist')
 	except pymysql.err.DatabaseError as e:
@@ -100,17 +145,36 @@ def initialSync(sock, sqlConnection):
 	finally:
 		cursor.close ()
 
-	
 	#Check if file needs to be split up to send over network
-	f = open('photosCSV.gz', 'rb')
-	l = f.read(1024)
-	while (l):
-		print("sending")
-		broadcast_msg(l)
-		l = f.read(1024)
-	print("Done")
-
+	if os.path.exists(filename):
+		length = os.path.getsize(filename)
+		sock.send(convert_to_bytes(length))
+	with open(filename, 'rb') as infile:
+		l = infile.read(BUFFER_SIZE)
+		count = 0
+		while l:
+			try:
+				count += 1
+				""" if count % 32 == 0:
+					time = photoshare.timerCheckpoint("1 Mb")		
+					print ('{:.5}MB/s'.format(1 / time)) """
+				sock.sendall(l)
+			except (ConnectionError):
+				handle_disconnect(sock, addr)
+				break
+			l = infile.read(BUFFER_SIZE) 
 	
+
+	photoshare.timerCheckpoint("Transfering DB")
+
+
+def convert_to_bytes(no):
+    result = bytearray()
+    result.append(no & 255)
+    for i in range(3):
+        no = no >> 8
+        result.append(no & 255)
+    return result	
 
 def handle_client_send(sock, q, addr):
 	""" Monitor queue for new messages, send them to client as they arrive """
@@ -119,7 +183,7 @@ def handle_client_send(sock, q, addr):
 		if msg == None: break
 		try:
 			photoshare.send_msg(sock, msg)
-		except (ConnectionError, BrokenPipe):
+		except (ConnectionError):
 			handle_disconnect(sock, addr)
 			break
 
@@ -259,8 +323,14 @@ def createNewUser(sqlConnection):
 	
 
 	
+
+
+
 def closeApp():
 	logger.info("Exiting Photoshare")
+	photoshare.totalTime()
+	pr.disable()
+	pr.dump_stats('server.profile')
 	os._exit(0)
 
 #After initial setup, should consistently connect with no errors
@@ -285,26 +355,45 @@ def handleDatabaseConnect(type):
 	
 	#Need to handle when no database named photos
 	except pymysql.err.OperationalError as e: #Couldnt connect to DB at host
-		if (e.args[0] == 1045):
+		if (e.args[0] == 1045):		#Doesnt catch on ubuntu
 			logger.error("Rejected Credentials SQL")
 		elif (e.args[0] == 2003):
 			logger.error("Rejected SQL Host")
 		closeApp()
 	except pymysql.err.InternalError as e:	#No DB found; Create Database and two tables
-		if (e.args[0] == 1049):
+		if (e.args[0] == 1049):		#Doesnt catch on ubuntu
 			sqlConnection = handleDatabaseConnect('Setup')
 			createDBandTables(sqlConnection)
 			createNewUser(sqlConnection)
 			return sqlConnection
 		else:
+			logger.info('DB Error')
+			print(e)
 			closeApp()
 
 
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == '__main__':
+	
+	
+
+	photoshare.startTimer()
 	logger.info('Starting PhotoShare')
 	#Do I have an internet connection?
 	
 	sqlConnection = handleDatabaseConnect("Connect")
+	logger.info('connected to db')
+	photoshare.timerCheckpoint("Connecting to DB")
 	#Start import process
 	#createNewUser(sqlConnection)
 
@@ -312,7 +401,7 @@ if __name__ == '__main__':
 	""" data = "99ba68146beb85547d2344744020d833272a800ca66d0c7098cdbd76ccdb1bcf"
 	length = len(data)
 	msg = ps.createMessage(0, length, data)  """
-
+	
 	try:
 		listenSock = photoshare.createListenSocket(HOST, PORT)
 	except OSError as e:
@@ -323,7 +412,9 @@ if __name__ == '__main__':
 	print('Listening on {}'.format(addr))
 	logger.info('Listening on {}'.format(addr))
 	while True:
+		photoshare.timerCheckpoint("Creating socket")
 		clientSock, addr = listenSock.accept()
+		photoshare.timerCheckpoint("Connection")
 		try:
 			clientSock = photoshare.sslWrap(clientSock)
 			q = queue.Queue()
@@ -334,6 +425,7 @@ if __name__ == '__main__':
 			recv_thread.start()
 			send_thread.start()
 			print('Connection from {}'.format(addr))
+			photoshare.timerCheckpoint("Spawned threads")
 		except ssl.SSLEOFError as e:
 			logger.info('Rejected NoSSL {0} {1}'.format(addr[0], addr[1]))
 			

@@ -6,7 +6,7 @@ import time
 from argon2 import PasswordHasher
 import logging
 import os, errno
-
+import cProfile
 from pprint import pprint
 
 ENDIAN = 'b'
@@ -26,6 +26,10 @@ LOGINUSERNAME = 'andy'
 LOGINPASSWORD = 'hi'
 
 SESSION_TOKEN = ''
+
+BUFFER_SIZE = 16384 #32768
+
+pr = cProfile.Profile()
 
 def handleClientSend(sock, q):
 	""" Monitor queue for new messages, send them to client as they arrive """
@@ -58,7 +62,7 @@ def handleClientReceive(sock):
 				print(msg)
 		except ConnectionError:
 			print('Connection to server closed')
-			sock.close()
+			handleClientDisconnect(sock)
 			break
 
 def loginToServer(sslSock):
@@ -98,11 +102,15 @@ def loginToServer(sslSock):
 			print("no messages to be received")
 	except ConnectionError:
 		print('Connection to server closed')
-		sock.close()
+		handleClientDisconnect(sock)
+		
 		
 	
 def handleClientDisconnect(sock):
 	sock.close()
+	photoshare.totalTime()
+	pr.disable()
+	pr.dump_stats('client.profile')
 	os._exit(0)
 	
 def establishConnection():
@@ -113,6 +121,9 @@ def establishConnection():
 	#Need to make sure client handles being rejected ok
 	#returns session token
 	sock = socket.socket()
+	sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+	""" sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock.setsockopt(socket.SOL_SOCKET, socket.TCP_NODELAY, 1) """
 	sslSock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED, ssl_version=ssl.PROTOCOL_SSLv23, ca_certs=CA_CERT_PATH)	#SSLv23 supports 
 	targetHost = TARGET_HOST
 	targetPort = TARGET_PORT
@@ -137,19 +148,71 @@ def establishConnection():
 	
 	return sslSock, validLogin
 
-def initialSync(sock):
-	f = open("photosDB.csv.gz", "wb")
+def bytesToNumber(bytes):
+    res = 0
+    for i in range(4):
+        res += bytes[i] << (i*8)
+    return res
 
-	l = sock.recv(1024)
-	while (l):
-		print ("receiving")
-		f.write(l)
-		l = sock.recv(1024)
+def bytestoMB(bytes):
+	kb = bytes / 1024
+	return ("{:.2f} MB".format((kb / 1024)))
+
+
+#Creates and gets DB
+#Need to see if sync is resuming
+def initialSync(sock):
+	
+	f = openFile('Testing/clientDB.mov')			#Change this
+
+	size = getSizeOfTransfer(sock)
+
+	currentSize = 0
+	
+	modifier = 32
+
+	while currentSize < size:
+		
+		data = receivePeice(sock, BUFFER_SIZE, currentSize, size)
+		if data == 1:
+			break			
+		""" if currentSize == (BUFFER_SIZE * modifier):						#Testing
+			modifier += 32
+			photoshare.timerCheckpoint(bytestoMB(currentSize)) """
+		
+		f.write(data)
+		currentSize += len(data)
+		
+	
 	f.close()
-	print("done")
+	photoshare.timerCheckpoint("Initial Sync")
+	
+	
+	
+
+
+def receivePeice(sock, BUFFER_SIZE, currentSize, size):
+	data = sock.recv(BUFFER_SIZE)
+	if not data:
+		return 1
+	if len(data) + currentSize > size:
+		data = data[:size-currentSize]
+	return data
+
+def getSizeOfTransfer(sock):
+	size = sock.recv(4)
+	size = bytesToNumber(size)
+	#print("Receiving file size of {}".format(bytestoMB(size)))
+	return size
+
+def openFile(filename):
+	return open(filename, "wb")
 
 
 if __name__ == '__main__':
+	pr.enable()			#PROFILING
+
+	photoshare.startTimer()
 	#Am I configured to connect to a server?
 	validLogin = False
 	ps = psUtil(ENDIAN, VERSION)
@@ -158,7 +221,7 @@ if __name__ == '__main__':
 	sock, token = establishConnection()
 	
 
-	data = SESSION_TOKEN  #Initial Sync
+	data = SESSION_TOKEN  #Initial Handshake
 	length = len(data)
 	msg = ps.createMessage(1, length, data)
 
@@ -169,7 +232,7 @@ if __name__ == '__main__':
 		logger.info("Connection Error")
 	
 	initialSync(sock)
-
+	
 	#Loop indefinitely to receive messages from server
 	while True:
 		try:
@@ -177,7 +240,7 @@ if __name__ == '__main__':
 			msgs = photoshare.receiveMessages(sock)
 		except (EOFError, ConnectionError, ValueError):
 			print('Connection to server closed')
-			sock.close()
+			handleClientDisconnect(sock)
 			break 
 	
 		
