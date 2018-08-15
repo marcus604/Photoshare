@@ -2,7 +2,7 @@ import socket
 import ssl
 import logging
 import time
-
+from pathlib import Path
 
 HOST = ''
 PORT = 1428
@@ -89,6 +89,14 @@ def send_msg(sock, message):
 	#data = prepareMessage(header, message)
 	#data = prep_msg(msg)
 	sock.sendall(message)
+
+def getFileHandles(dirToScan):
+	rootDir = Path(dirToScan)
+	fileList = [f for f in rootDir.glob('**/*') if f.is_file()]
+
+	if not fileList:
+		return False
+	return fileList
 
 class psUtil:
 	def __init__(self, endian, version):

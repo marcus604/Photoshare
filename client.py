@@ -186,6 +186,27 @@ def initialSync(sock):
 	
 	f.close()
 	photoshare.timerCheckpoint("Initial Sync")
+
+	numberOfPhotos = getSizeOfTransfer(sock)
+	
+
+	for count in range(numberOfPhotos):
+		size = getSizeOfTransfer(sock)
+		currentSize = 0
+		while currentSize < size:
+		
+			data = receivePeice(sock, BUFFER_SIZE, currentSize, size)
+			if data == 1:
+				break			
+			""" if currentSize == (BUFFER_SIZE * modifier):						#Testing
+				modifier += 32
+				photoshare.timerCheckpoint(bytestoMB(currentSize)) """
+			
+			f.write(data)
+			currentSize += len(data)
+
+	
+
 	
 	
 	
@@ -211,6 +232,7 @@ def openFile(filename):
 
 if __name__ == '__main__':
 	pr.enable()			#PROFILING
+	
 
 	photoshare.startTimer()
 	#Am I configured to connect to a server?

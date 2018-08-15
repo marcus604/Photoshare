@@ -56,6 +56,6 @@ dailyNotes.txt
 *.crt
 To Do
 *.csv
+*.profile
 
-client.profile
-client.swift
+

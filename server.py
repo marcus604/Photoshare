@@ -50,10 +50,6 @@ def NoUserFoundError(Exception):
 
 
 
-
-
-
-
 def handleClientConnect(sock, addr, sqlConnection):
 	pr.enable()
 	startTime = time.time()
@@ -115,7 +111,7 @@ def handleClientConnect(sock, addr, sqlConnection):
 #Need to see what compression level is being asked
 def initialSync(sock, sqlConnection):
 
-	filename = 'testfile.mov'
+	filename = 'photosCSV.gz'
 	#filename = 'Testing/Files/1G'
 
 	#Is the database populated?
@@ -165,7 +161,46 @@ def initialSync(sock, sqlConnection):
 			l = infile.read(BUFFER_SIZE) 
 	
 
-	photoshare.timerCheckpoint("Transfering DB")
+	photoshare.timerCheckpoint("Transfering DB Table")
+	os.remove(filename)
+
+	#Collect files to sync
+	fileHandles = photoshare.getFileHandles("Library/")
+
+	#Assume for now that we want full quality sync
+	#Bundle 10 photos together
+	if fileHandles != False:
+		numOfPhotos = convert_to_bytes(len(fileHandles))
+		sock.send(numOfPhotos)
+		#count = 0
+		for file in fileHandles:
+			
+			length = os.path.getsize(file)
+			sock.send(convert_to_bytes(length))
+			with open(file, 'rb') as infile:
+				l = infile.read(BUFFER_SIZE)
+				count = 0
+				while l:
+					try:
+						count += 1
+						""" if count % 32 == 0:
+							time = photoshare.timerCheckpoint("1 Mb")		
+							print ('{:.5}MB/s'.format(1 / time)) """
+						sock.sendall(l)
+					except (ConnectionError):
+						handle_disconnect(sock, addr)
+						break
+					l = infile.read(BUFFER_SIZE) 
+
+
+
+
+
+
+
+
+
+
 
 
 def convert_to_bytes(no):

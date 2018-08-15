@@ -31,6 +31,7 @@ def path_leaf(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
 
+
 def collectFilesToImport(dirToScan):
     rootDir = Path(dirToScan)
     #rootDir = Path("ImportTest/")
