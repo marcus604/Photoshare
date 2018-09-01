@@ -441,8 +441,10 @@ if __name__ == '__main__':
 		listenSock = photoshare.createListenSocket(HOST, PORT)
 	except OSError as e:
 		if e.args[0] == 98:
-			logger.error("Address already in use")
+			logger.error("Failed to create socket: Address already in use")
 			closeApp()
+		if e.args[0] == 13:
+			logger.error("Failed to create socket: Permission Denied")
 	addr = listenSock.getsockname()
 	print('Listening on {}'.format(addr))
 	logger.info('Listening on {}'.format(addr))
