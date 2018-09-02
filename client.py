@@ -12,7 +12,7 @@ from pprint import pprint
 ENDIAN = 'b'
 VERSION = 0.1
 ps = ''
-TARGET_HOST = sys.argv[-1] if len(sys.argv) > 1 else 'localhost'
+TARGET_HOST = sys.argv[-1] if len(sys.argv) > 1 else 'youwontbelieveme.duckdns.org'
 TARGET_PORT = photoshare.PORT
 sendQueues = {}
 lock = threading.Lock()
@@ -125,14 +125,20 @@ def establishConnection():
 	""" sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	sock.setsockopt(socket.SOL_SOCKET, socket.TCP_NODELAY, 1) """
 	sslSock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED, ssl_version=ssl.PROTOCOL_SSLv23, ca_certs=CA_CERT_PATH)	#SSLv23 supports 
+	
 	targetHost = TARGET_HOST
 	targetPort = TARGET_PORT
 
 	sslSock.connect((targetHost, int(targetPort)))
 
 	cert = sslSock.getpeercert()
-	#if not cert or ssl.match_hostname(cert, targetHost):
-	#	raise Exception("Invalid host for cert")
+	try: 
+		ssl.match_hostname(cert, targetHost)
+	except ssl.CertificateError as e:
+		handleClientDisconnect(sslSock)
+	if not cert:
+		raise Exception("No Cert")
+		handleClientDisconnect(sslSock)
 	
 	validLogin = loginToServer(sslSock)
 
