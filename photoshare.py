@@ -43,7 +43,17 @@ def createListenSocket(host, port):
 #Wraps socket with protocol SSLv23. Supports TLS1.2-1.0
 #Doesnt handle being port scanned
 def sslWrap(sock):
-	return ssl.wrap_socket(sock, server_side=True, certfile="server.crt", keyfile="server.key", ssl_version=ssl.PROTOCOL_SSLv23)
+	context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+	context.verify_mode = ssl.CERT_OPTIONAL
+	context.load_cert_chain(certfile="server.crt", keyfile="server.key")
+	#Useful when I want to see unecrypted on the wire traffic
+	#Cant decrypt otherwise as it uses diffie helman and encrypts session data with a different key
+	#context.set_ciphers('RSA')		
+	return context.wrap_socket(sock, server_side=True)
+
+	#return context.wrap_socket(sock, server_side=True, certfile="server.crt", keyfile="server.key", ssl_version=ssl.PROTOCOL_SSLv23)
+
+	
 		
 		
 
