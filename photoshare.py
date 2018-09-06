@@ -48,7 +48,7 @@ def sslWrap(sock):
 	context.load_cert_chain(certfile="server.crt", keyfile="server.key")
 	#Useful when I want to see unecrypted on the wire traffic
 	#Cant decrypt otherwise as it uses diffie helman and encrypts session data with a different key
-	#context.set_ciphers('RSA')		
+	context.set_ciphers('RSA')		
 	return context.wrap_socket(sock, server_side=True)
 
 	#return context.wrap_socket(sock, server_side=True, certfile="server.crt", keyfile="server.key", ssl_version=ssl.PROTOCOL_SSLv23)
@@ -98,7 +98,10 @@ def send_msg(sock, message):
 	""" Send a string over a socket, preparing it first """
 	#data = prepareMessage(header, message)
 	#data = prep_msg(msg)
-	sock.sendall(message)
+	try: 
+		sock.sendall(message)
+	except:
+		raise ConnectionError
 
 def getFileHandles(dirToScan):
 	rootDir = Path(dirToScan)

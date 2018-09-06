@@ -61,18 +61,19 @@ def handleClientConnect(sock, addr, sqlConnection):
 		try:
 			msg = photoshare.receiveMessages(sock)
 			photoshare.timerCheckpoint("Receiving message")
-		except (EOFError, ConnectionError, ValueError):
+		except (EOFError, ConnectionError, ValueError, ConnectionResetError):
 			logger.info("Connection Error")
 			handle_disconnect(sock, addr)
 			break
 		if msg.instruction == 0:		#Handshake
 			if not verifyUser(msg.data, sqlConnection):		#Failed Login
-				data = "Invalid Username/Password"
+				data = "0"
 				length = len(data)
 				msg = ps.createMessage(99, length, data)	
-				broadcast_msg(msg)				
+				broadcast_msg(msg)	
+				time.sleep(1) #Ensures that rejection packet goes out before reset
+				photoshare.timerCheckpoint("Rejecting user")			
 				handle_disconnect(sock, addr)
-				photoshare.timerCheckpoint("Rejecting user")
 				break
 			#Valid User
 			#Generate Token to send back to user
@@ -284,7 +285,10 @@ def handle_disconnect(sock, addr):
 	if q:
 		q.put(None)
 		del sendQueues[fd]
-		addr = sock.getpeername()
+		try:
+			addr = sock.getpeername()
+		except OSError:
+			pass
 		print('Client {} disconnected'.format(addr))
 		logger.info('Client {} disconnected'.format(addr))
 		sock.close()
@@ -440,11 +444,14 @@ if __name__ == '__main__':
 	try:
 		listenSock = photoshare.createListenSocket(HOST, PORT)
 	except OSError as e:
-		if e.args[0] == 98:
+		if e.args[0] == 98 or 48:
 			logger.error("Failed to create socket: Address already in use")
+			print("Failed to create socket: Address already in use")
 			closeApp()
 		if e.args[0] == 13:
 			logger.error("Failed to create socket: Permission Denied")
+			closeApp()
+		
 	addr = listenSock.getsockname()
 	print('Listening on {}'.format(addr))
 	logger.info('Listening on {}'.format(addr))
