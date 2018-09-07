@@ -2,11 +2,12 @@ import socket
 import ssl
 import logging
 import time
+from PSMessage import psMessage
 from pathlib import Path
 
 HOST = ''
 PORT = 1428
-VERSION = '01'
+VERSION = 1
 logging.basicConfig(filename='photoshare.log',level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -73,15 +74,15 @@ def prepareMessage(header, message):
 	#print(message)
 	return message
 
-def receiveMessages(sock):
+def receiveMessage(sock):
 	""" Receive data and parse into appropiate container """
 	endian = sock.read(1).decode('utf-8')
-	version = float(sock.read(1).decode('utf-8') + "." + sock.read(1).decode('utf-8'))
-	type = int(sock.read(2).decode('utf-8'))
+	version = int(sock.read(2).decode('utf-8'))
+	instruction = int(sock.read(2).decode('utf-8'))
 	length = int(sock.read(2).decode('utf-8'))
-	recvd = sock.read(length).decode('utf-8')		#Catches value error above in case this is empty, is this the best way to do it?
+	data = sock.read(length).decode('utf-8')		#Catches value error above in case this is empty, is this the best way to do it?
 
-	receivedMessage = psMessage(endian, version, type, length, recvd)
+	receivedMessage = psMessage(endian, version, instruction, length, data)
 	
 	#receivedMessage.print()
 	if not receivedMessage:
@@ -124,109 +125,4 @@ class psUtil:
 
 	
 
-	#Endian			1 Byte; 0 = Little, 1 = Big
-	#Version		8 Bytes;	0-255
-	#Instruction	4 Bytes; 0 = Handshake, 1 = Pull, 2 = Push, 99 = Error
-	#Length			8 Bytes
-class psMessage:
-	def __init__(self, endian, version, instruction, length, data):
-		#Create object from either strings, or byte code. 
-		#Essentially overloading the constructor
-		self.endian = endian
-		self.version = version
-		self.instruction = instruction
-		self.data = data
-		self.length = length
-		
-		'''
-		try:
-			self.endian = endian.encode('utf-8')
-			self.version = version.encode('utf-8')
-			self.instruction = instruction.encode('utf-8')
-			self.data = data.encode('utf-8')
-			self.length = str(length).encode('utf-8')
-		except AttributeError as e:		
-			self.endian = endian
-			self.version = version
-			self.instruction = instruction
-			self.data = data
-			self.length = length
-			'''
-		
 
-	def fromString(self, endian, version, instruction, data):
-		self.endian = endian.encode('utf-8')
-		self.version = version.encode('utf-8')
-		self.instruction = instruction.encode('utf-8')
-		self.data = data.encode('utf-8')
-		self.length = str(len(self.data)).encode('utf-8')
-
-	def fromByteString(self, endian, version, instruction, length, data):
-		self.endian = endian
-		self.version = version
-		self.instruction = instruction
-		self.data = data
-		self.length = length
-
-	def print(self):
-		print("+================================================+")
-		print("| 	Endian		|	{}		|".format(self.formatEndian()))
-		print("| 	Version		|	{}		|".format(self.formatVersion()))
-		print("| 	Instruction	|	{}	|".format(self.formatInstruction()))
-		print("| 	Length		|	{} Bytes	|".format(self.length))
-		print("+===========================================================================================================+")
-		print("| 	Data		|	{}			".format(self.data))
-		print("+===========================================================================================================+")
-
-
-	def getByteString(self):
-		version = self.formatVersion()
-		instruction = self.padZero(self.instruction)
-		length = self.padZero(self.length)
-		
-		message = bytes()
-		message += self.endian.encode('utf-8')			#Endian Type
-		message += version.encode('utf-8')				#Version
-		message += instruction.encode('utf-8')			#Type of Message (New Client, Request Update, Push update, Error)
-		message += length.encode('utf-8')				#Length of message
-		message += self.data.encode('utf-8')			#Message
-		return message
-
-	def formatInstruction(self):
-		#00 Handshake
-		#01 Request Update
-		#02 Push Update
-		i = self.instruction
-		
-		if i == 0:
-			return "Handshake"
-		elif i == 1:
-			return "Pull"
-		elif i == 2:
-			return "Push"
-		elif i == 99:
-			return "Error"
-
-	def formatData(self):
-		strVal = str(self.data)
-		return strVal
-	
-	def formatLength(self):
-		strVal = str(self.length)
-		return strVal[2] + strVal[3]
-
-	def formatVersion(self):
-		strVal = str(self.version)
-		return strVal[0] + strVal[2]
-
-	def formatEndian(self):
-		if self.endian == b'l':
-			return "Little"
-		else:	# b'b'
-			return "Big"
-
-	@staticmethod
-	def padZero(data):
-		if data < 10:
-			return f'{data:02}'
-		return str(data)

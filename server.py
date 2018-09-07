@@ -1,4 +1,4 @@
-from photoshare import psMessage
+from PSMessage import psMessage
 from photoshare import psUtil
 import photoshare
 import ssl
@@ -16,7 +16,7 @@ import shutil
 import cProfile
 
 ENDIAN = 'b'
-VERSION = 0.1
+VERSION = 1
 ps = ''
 HOST = ''
 PORT = 1428
@@ -59,7 +59,7 @@ def handleClientConnect(sock, addr, sqlConnection):
 	token = ''
 	while True:
 		try:
-			msg = photoshare.receiveMessages(sock)
+			msg = photoshare.receiveMessage(sock)
 			photoshare.timerCheckpoint("Receiving message")
 		except (EOFError, ConnectionError, ValueError, ConnectionResetError):
 			logger.info("Connection Error")
@@ -88,10 +88,16 @@ def handleClientConnect(sock, addr, sqlConnection):
 			if addr[0] != clientIP and msg.data[:(TOKEN_SIZE * 2)] != token:	#Grabs the token stored at the begenning of the data
 				logger.info("Unauthorized Connection")
 				handle_disconnect(sock, addr)
+			else:
+				msg.stripToken()
 	
-		if msg.instruction == 1:		#Initial DB Sync
+		if msg.instruction == 1:		#Request for photos
+			numOfPhotosRequested = int(msg.formatData())
+			print(numOfPhotosRequested)
 			initialSync(sock, sqlConnection)
-			
+
+		if msg.instruction == 2:		#Client Sending Photos
+			print("instruction 2")
 			
 			
 		""" elif msg.instruction == 2:		#02
@@ -308,8 +314,11 @@ def executeSQL(sqlConnection, sql):
 			cursor.close ()
 			if result:
 				return result
-	except BaseException as e:
-		print("something went wrong")
+	except pymysql.err.ProgrammingError as e:
+		logger.error(e.args[1])
+	except pymysql.err.InternalError as e:
+		logger.error(e.args[1])
+	
 
 #Will need to catch this
 def createDBandTables(sqlConnection):
@@ -400,15 +409,11 @@ def handleDatabaseConnect(type):
 			logger.error("Rejected SQL Host")
 		closeApp()
 	except pymysql.err.InternalError as e:	#No DB found; Create Database and two tables
-		if (e.args[0] == 1049):		#Doesnt catch on ubuntu
-			sqlConnection = handleDatabaseConnect('Setup')
-			createDBandTables(sqlConnection)
-			createNewUser(sqlConnection)
-			return sqlConnection
-		else:
-			logger.info('DB Error')
-			print(e)
-			closeApp()
+		sqlConnection = handleDatabaseConnect('Setup')
+		createDBandTables(sqlConnection)
+		createNewUser(sqlConnection)
+		return sqlConnection
+		
 
 
 
@@ -437,9 +442,6 @@ if __name__ == '__main__':
 	#createNewUser(sqlConnection)
 
 	ps = psUtil(ENDIAN, VERSION)
-	""" data = "99ba68146beb85547d2344744020d833272a800ca66d0c7098cdbd76ccdb1bcf"
-	length = len(data)
-	msg = ps.createMessage(0, length, data)  """
 	
 	try:
 		listenSock = photoshare.createListenSocket(HOST, PORT)
