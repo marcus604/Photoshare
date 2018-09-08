@@ -1,5 +1,7 @@
 from PSMessage import psMessage
 from photoshare import psUtil
+from DBConnection import dbConnection
+from User import user
 import photoshare
 import ssl
 import threading, queue
@@ -14,6 +16,7 @@ import csv
 import gzip
 import shutil
 import cProfile
+import configparser
 
 ENDIAN = 'b'
 VERSION = 1
@@ -29,6 +32,7 @@ SQL_USERNAME = 'root'
 SQL_PASSWORD = 'thisIsMySQLPassword'
 BUFFER_SIZE = 16384 #32768 
 pr = cProfile.Profile()
+dbConn = ''
 
 
 
@@ -381,48 +385,15 @@ def closeApp():
 	pr.dump_stats('server.profile')
 	os._exit(0)
 
-#After initial setup, should consistently connect with no errors
-#Tries to connect to database and given table
-#If unsuccesful will attempt to create database and table structure
-def handleDatabaseConnect(type):
-	#Valid and connected DB
-	try:
-		if (type == 'Connect'):
-			sqlConnection = pymysql.connect(host='localhost', user=SQL_USERNAME, password=SQL_PASSWORD,	db='photoshare', charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
-			#Check if both tables exist
-			tables = executeSQL(sqlConnection, 'show tables')
-			if (not tables) or (len(tables) != 2):			#Missing one or both tables
-				logger.error('SQL Table doesnt exist')
-				raise pymysql.err.InternalError
-			logger.info('Connected to database')
-			return sqlConnection
-		elif (type == 'Setup'):
-			sqlConnection = pymysql.connect(host='localhost', user=SQL_USERNAME, password=SQL_PASSWORD,	charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
-			logger.info("Creating Database")
-			return sqlConnection
-	
-	#Need to handle when no database named photos
-	except pymysql.err.OperationalError as e: #Couldnt connect to DB at host
-		if (e.args[0] == 1045):		#Doesnt catch on ubuntu
-			logger.error("Rejected Credentials SQL")
-		elif (e.args[0] == 2003):
-			logger.error("Rejected SQL Host")
-		closeApp()
-	except pymysql.err.InternalError as e:	#No DB found; Create Database and two tables
-		sqlConnection = handleDatabaseConnect('Setup')
-		createDBandTables(sqlConnection)
-		createNewUser(sqlConnection)
-		return sqlConnection
-		
 
 
-
-
-
-
-
-
-
+def finishFirstRun(settings):
+	settingsFile = "Settings.ini"
+	settingsFP = open(settingsFile, "w")
+	settings.set('MAIN', 'firstRun', 'False')
+	settings.write(settingsFP)
+	settingsFP.close()
+	logger.info("Finished First Run")
 
 
 
@@ -433,10 +404,43 @@ if __name__ == '__main__':
 
 	photoshare.startTimer()
 	logger.info('Starting PhotoShare')
-	#Do I have an internet connection?
+
+	#Read Settings .ini file
+	#Extented Interpolation allow for use of variables within settings
+	#Makes setting directories easier and cleaner
+	settings = configparser.ConfigParser()
+	settings._interpolation = configparser.ExtendedInterpolation()
+	settingsSet = settings.read('settings.ini')
+	if settingsSet == []:
+		logger.error("Settings file not found")
+		closeApp()
 	
-	sqlConnection = handleDatabaseConnect("Connect")
-	logger.info('connected to db')
+
+	#Connect to DB host with provided username and password
+	#Create database and tables if first run of app
+	try:
+		dbConn = dbConnection(settings)
+		dbConn.connect()
+		if settings.getboolean('MAIN', 'firstRun'):
+			dbConn.createDatabase()
+			dbConn.createUserTable()
+			dbConn.createPhotoTable()
+			dbConn.insertUser(user())
+			createAnother = input("Create another user: y/n? ")
+			while createAnother is "y":
+				dbConn.insertUser(user())
+				createAnother = input("Create another user: y/n?")
+			finishFirstRun(settings)
+	except configparser.Error as e:
+		logger.error("Settings malformed: " + e.message)
+		closeApp()
+	except pymysql.err.Error as e:
+		closeApp()
+	
+	#Start photo directory service
+	
+	
+	
 	photoshare.timerCheckpoint("Connecting to DB")
 	#Start import process
 	#createNewUser(sqlConnection)
