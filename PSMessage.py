@@ -31,17 +31,6 @@ class psMessage:
         self.data = data
         self.length = length
 
-    def print(self):
-        print("+================================================+")
-        print("| 	Endian		|	{}		|".format(self.formatEndian()))
-        print("| 	Version		|	{}		|".format(self.formatVersion()))
-        print("| 	Instruction	|	{}	|".format(self.formatInstruction()))
-        print("| 	Length		|	{} Bytes	|".format(self.length))
-        print("+===========================================================================================================+")
-        print("| 	Data		|	{}			".format(self.data))
-        print("+===========================================================================================================+")
-
-
     def getByteString(self):
         version = self.padZero(self.version)
         instruction = self.padZero(self.instruction)
@@ -54,27 +43,10 @@ class psMessage:
         message += self.data			   
         return message.encode('utf-8')
 
-    def formatInstruction(self):
-        #00 Handshake
-        #01 Request Update
-        #02 Push Update
-        i = self.instruction
-        
-        if i == 0:
-            return "Handshake"
-        elif i == 1:
-            return "Pull"
-        elif i == 2:
-            return "Push"
-        elif i == 99:
-            return "Error"
-
     def stripToken(self):
         self.data = str(self.data)[16:]
 
-    def formatData(self):
-        strVal = str(self.data)
-        return strVal
+    
 
     def formatLength(self):
         strVal = str(self.length)
