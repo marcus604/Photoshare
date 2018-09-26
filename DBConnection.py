@@ -4,7 +4,7 @@ import logging
 from User import user
 import time
 
-logging.basicConfig(filename='photoshare.log',level=logging.DEBUG)
+logging.basicConfig(filename='photoshare.log',level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class dbConnection:

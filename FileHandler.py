@@ -7,19 +7,30 @@ import exifread
 import datetime
 import shutil
 import ntpath
+import fnmatch
 from PIL import Image
 from pathlib import Path
 
-logging.basicConfig(filename='photoshare.log',level=logging.DEBUG)
+logging.basicConfig(filename='photoshare.log',level=logging.INFO)
 logger = logging.getLogger(__name__)
+logging.getLogger('PIL.Image').setLevel(logging.WARNING)
+logging.getLogger('exifread').setLevel(logging.WARNING)
 
 class FileHandler:
 	
 
 	#CONSTANTS
-	IMAGE_EXTENSIONS=[".jpg", ".png", ".tiff", ".gif", ".jpeg"]
-	VIDEO_EXTENSIONS=[".mp4", ".mov", ".avi", ".mkv"]
-	ALL_EXTENSIONS=IMAGE_EXTENSIONS + VIDEO_EXTENSIONS
+	IMAGE_EXTENSIONS = 	[".jpg", ".png", ".tiff", ".gif", ".jpeg"]
+	VIDEO_EXTENSIONS = 	[".mp4", ".mov", ".avi", ".mkv"]
+	ALL_EXTENSIONS = 	IMAGE_EXTENSIONS + VIDEO_EXTENSIONS
+
+	#Ensures case insesitivity
+	numOfExtensions = len(ALL_EXTENSIONS)	
+	for i in range(0, numOfExtensions):
+		ALL_EXTENSIONS.append(ALL_EXTENSIONS[i].upper())
+
+	
+
 	
 	EXIF_TAGS=["Image Make", "Image Model", "EXIF LensModel", "Exif Flash", "Image DateTime", "EXIF ISOSpeedRatings",
             "EXIF MaxApertureValue", "EXIF FocalLength", "EXIF ExifImageWidth", 
@@ -102,7 +113,6 @@ class FileHandler:
 			thumbnailPath = Path(str(self.LIBRARY_DIR) + "/thumbnails/" + year + "/" + month + "/" + day + "/" + str(self.path_leaf(photoPath)))
 			thumbnail = self.generateImageThumbnail(currentPhotoPath, exifValues)#.save(thumbnailPath)
 			if not thumbnail:
-				logger.error("Image is corrupt")
 				corruptPhotos += 1
 				continue
 			thumbnail.save(thumbnailPath)
