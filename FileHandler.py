@@ -57,6 +57,7 @@ class FileHandler:
 
 
 	def importPhotos(self, dbConn):
+		logger.info("Starting photo import")
 		#Logging Variables
 		photosImported = 0
 		duplicatesSkipped = 0
@@ -70,8 +71,11 @@ class FileHandler:
 		#Get existing hashes to check for duplicates
 		hashes = dbConn.getAllExistingHashes()
 
+		progressCount = 1
 		#Loop through all supported files
 		for currentPhotoPath in filesToImport:
+			print("Processing file {} of {}".format(progressCount, len(filesToImport)))
+			progressCount += 1
 			exifValues=[]
 			currentPhotoHash = self.md5Hash(currentPhotoPath)
 

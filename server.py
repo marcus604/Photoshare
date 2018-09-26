@@ -2,7 +2,7 @@ from PSMessage import psMessage
 from photoshare import psUtil
 from DBConnection import dbConnection
 from FileHandler import *
-from User import user
+from User import User
 import photoshare
 import ssl
 import threading, queue
@@ -72,13 +72,12 @@ def handleClientConnect(sock, addr, dbConn):
                         handle_disconnect(sock, addr)
                         break
                 if msg.instruction == 0:                #Handshake
-                        if not verifyUser(msg.data, sqlConnection):             #Failed Login           REMOVE SQL CONNECTION
+                        if not verifyUser(msg.data, dbConn):             #Failed Login           
                                 data = "0"
                                 length = len(data)
                                 msg = ps.createMessage(99, length, data)        
                                 broadcast_msg(msg)      
-                                time.sleep(1) #Ensures that rejection packet goes out before reset
-                                photoshare.timerCheckpoint("Rejecting user")                    
+                                time.sleep(1) #Ensures that rejection packet goes out before reset                 
                                 handle_disconnect(sock, addr)
                                 break
                         #Valid User
@@ -239,37 +238,27 @@ def handle_client_send(sock, q, addr):
         #Monitor  """
 
 #NEED TO SCRUB SQL
-def verifyUser(data, sqlConnection):
+def verifyUser(data, dbConn):
         #Parse Username and password from given data
         #Connect to database and 
         parts = data.split(':', maxsplit=1)
         userName = parts[0]
         password = parts[1]
         #Connect to DB and find given user
+        user = dbConn.getUser(userName)
+        if not user:
+                #No user found
+                logger.info("Invalid credentials for user: {}".format(userName))
+                return False
+        ph = PasswordHasher()
         try:
-                with sqlConnection.cursor() as cursor:
-                        sql = "SELECT `Password`, `Salt` FROM `photoshare`.`users` WHERE `UserName` = '{0}'".format(userName)
-                        cursor.execute(sql)
-                        if cursor.rowcount == 0:        #No user found with that name   
-                                raise argon2.exceptions.VerifyMismatchError
-                        result = cursor._result.rows[0]
-                        sqlpass = result[0]
-                        salt = result[1]
-                        ph = PasswordHasher()
-                        ph.verify(sqlpass, password + salt)             #Throws verifyMismatchError
-                        logger.info("User {0} connected".format(userName))
-                        cursor.close ()
-                        return True
+                ph.verify(user.getHash(), password + user.getSalt())
         except argon2.exceptions.VerifyMismatchError:
-                #Toggle for logging passwords, this would only be incorrect passwords
-                logger.info('Rejected Credentials {0} {1}'.format(userName, password))
-        except pymysql.err.ProgrammingError as e:
-                logger.error('SQL Table doesnt exist')
-        except pymysql.err.DatabaseError as e:
-                logger.error('SQL Error')
-        finally:
-                cursor.close ()
-
+                logger.info("Invalid credentials for user: {}".format(userName))               
+                return False
+        logger.info("User {} connected".format(userName))
+        return True
+        
 
 def scrubSQL(toScrub):
         #scrub text of any invalid characters to prevent SQL injection attacks
@@ -295,7 +284,6 @@ def handle_disconnect(sock, addr):
         # If we find a queue then this disconnect has not yet
         # been handled
         if q:
-                q.put(None)
                 del sendQueues[fd]
                 try:
                         addr = sock.getpeername()
@@ -304,6 +292,8 @@ def handle_disconnect(sock, addr):
                 print('Client {} disconnected'.format(addr))
                 logger.info('Client {} disconnected'.format(addr))
                 sock.close()
+                q.put(None)
+                
 
 
 def executeSQL(sqlConnection, sql):
@@ -451,13 +441,12 @@ if __name__ == '__main__':
         except LibraryPathNotEmptyError:
                 logger.error("Library folder is not empty")
                 closeApp()
-
+        
         #Start photo directory service
         fileHandler.importPhotos(dbConn)
                 
-        logger.info("quitting for debuggin")
-
-        closeApp()        
+       
+       
 
 
 
@@ -488,7 +477,7 @@ if __name__ == '__main__':
                         with lock:
                                 sendQueues[clientSock.fileno()] = q
                         recv_thread = threading.Thread(target=handleClientConnect,args=[clientSock, addr, dbConn],daemon=True)
-                        send_thread = threading.Thread(target=handle_client_send,args=[clientSock, q,addr],daemon=True)
+                        send_thread = threading.Thread(target=handle_client_send,args=[clientSock, q, addr],daemon=True)
                         recv_thread.start()
                         send_thread.start()
                         print('Connection from {}'.format(addr))

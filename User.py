@@ -2,7 +2,7 @@ from argon2 import PasswordHasher
 import secrets      #Used to generate salt
 import time
 
-class user:
+class User:
 
     USERNAME = ''
     HASH = ''
@@ -11,9 +11,14 @@ class user:
     lastSync = ''
     token = ''
 
-    def __init__(self):
-        self.USERNAME = self.generateUserName()
-        self.SALT, self.HASH = self.generatePassword()
+    def __init__(self, userName=None, hashedPass=None, salt=None):
+        if userName is None:
+            self.USERNAME = self.generateUserName()
+            self.SALT, self.HASH = self.generatePassword()
+        else:
+            self.USERNAME = userName
+            self.HASH = hashedPass
+            self.SALT = salt
 
     def generateUserName(self):
         userNameValid = False

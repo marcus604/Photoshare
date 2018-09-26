@@ -1,7 +1,8 @@
 import pymysql
 import configparser
 import logging
-from User import user
+from argon2 import PasswordHasher
+from User import User
 import time
 
 logging.basicConfig(filename='photoshare.log',level=logging.INFO)
@@ -89,6 +90,17 @@ class dbConnection:
             for row in result:
                 hashes.append(row['md5Hash'])
         return hashes
+
+    def getUser(self, userName):
+        sql = "SELECT `Hash`, `Salt` FROM `photoshare`.`users` WHERE `UserName` = '{0}'".format(userName)
+        result = self.executeSQL(sql)
+        if result is None:  #No user found
+            return False
+        return User(userName, result[0].get('Hash'), result[0].get('Salt'))
+
+
+
+
 
     def executeSQL(self, sql):
         try:
