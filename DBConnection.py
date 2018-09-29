@@ -44,11 +44,11 @@ class dbConnection:
         logger.info("Database created")
 
     def createUserTable(self):
-        self.executeSQL('CREATE TABLE `photoshare`.`users` ( `UserName` VARCHAR(255) NOT NULL , `Hash` VARCHAR(255) NOT NULL , `Salt` VARCHAR(255) NOT NULL , `DateCreated` INT(11) NOT NULL , `LastSignedIn` INT(11) NULL , `LastSync` INT(11) NULL , PRIMARY KEY (`UserName`(255)));')
+        self.executeSQL('CREATE TABLE `photoshare`.`users` ( `UserName` VARCHAR(255) NOT NULL , `Hash` VARCHAR(255) NOT NULL , `Salt` VARCHAR(255) NOT NULL , `DateCreated` INT(11) NOT NULL , `LastSignedIn` INT(11) NULL , `LastSync` INT(11) NULL , `Token` VARCHAR(16) NULL , `CompressionLevel` INT(1) , PRIMARY KEY (`UserName`(255)));')
         logger.info("User table created")
 
     def createPhotoTable(self):
-        self.executeSQL('CREATE TABLE `photoshare`.`photos` ( `md5Hash` VARCHAR(255) NOT NULL , `Dir` VARCHAR(255) NOT NULL , `Make` VARCHAR(255) , `Model` VARCHAR(255) , `LensModel` VARCHAR(255) , `Flash` VARCHAR(255) , `DateTime` VARCHAR(255) , `ISO` VARCHAR(255) , `Aperture` VARCHAR(255) , `FocalLength` VARCHAR(255) , `Width` VARCHAR(255) , `Height` VARCHAR(255) , `ExposureTime` VARCHAR(255) , `Sharpness` VARCHAR(255) , PRIMARY KEY (`md5Hash`(255)));')
+        self.executeSQL('CREATE TABLE `photoshare`.`photos` ( `md5Hash` VARCHAR(255) NOT NULL , `Dir` VARCHAR(255) NOT NULL , `DateAdded` VARCHAR(255) NOT NULL , `Make` VARCHAR(255) , `Model` VARCHAR(255) , `LensModel` VARCHAR(255) , `Flash` VARCHAR(255) , `DateTime` VARCHAR(255) , `ISO` VARCHAR(255) , `Aperture` VARCHAR(255) , `FocalLength` VARCHAR(255) , `Width` VARCHAR(255) , `Height` VARCHAR(255) , `ExposureTime` VARCHAR(255) , `Sharpness` VARCHAR(255) , PRIMARY KEY (`md5Hash`(255)));')
         logger.info("Photo table created")
 
     #Could be compressed to single line
@@ -63,7 +63,8 @@ class dbConnection:
 
     def insertPhoto(self, hash, path, exifValues):
         # Create a new record
-            sql = "INSERT INTO `photoshare`.`photos` (`md5Hash`, `dir`, `make`, `model`, `lensModel`, `flash`, `dateTime`, `ISO`, `aperture`, `focalLength`, `width`, `height`, `exposureTime`, `sharpness`) VALUES (\'{0}\', \'{1}\', \'{2}\', \'{3}\', \'{4}\', \'{5}\', \'{6}\', \'{7}\', \'{8}\', \'{9}\', \'{10}\', \'{11}\', \'{12}\', \'{13}\');".format(hash, path, exifValues[0], exifValues[1], exifValues[2], exifValues[3], exifValues[4], exifValues[5], exifValues[6], exifValues[7], exifValues[8], exifValues[9], exifValues[10], exifValues[11])
+            currentTime = time.time()
+            sql = "INSERT INTO `photoshare`.`photos` (`md5Hash`, `dir`, `dateadded`, `make`, `model`, `lensModel`, `flash`, `dateTime`, `ISO`, `aperture`, `focalLength`, `width`, `height`, `exposureTime`, `sharpness`) VALUES (\'{0}\', \'{1}\', \'{2}\', \'{3}\', \'{4}\', \'{5}\', \'{6}\', \'{7}\', \'{8}\', \'{9}\', \'{10}\', \'{11}\', \'{12}\', \'{13}\', \'{14}\');".format(hash, path, currentTime, exifValues[0], exifValues[1], exifValues[2], exifValues[3], exifValues[4], exifValues[5], exifValues[6], exifValues[7], exifValues[8], exifValues[9], exifValues[10], exifValues[11])
             self.executeSQL(sql)
 
             # connection is not autocommit by default. So you must commit to save
@@ -81,6 +82,13 @@ class dbConnection:
                 pass """
             #except BaseException:
             #    pass
+    
+    def getRangeOfPhotoPaths(self, lastSync):
+        currentTime = time.time()
+        sql = "SELECT `Dir` FROM `photoshare`.`photos` WHERE `DateAdded` BETWEEN '{}' AND '{}'".format(lastSync, currentTime)
+        return self.executeSQL(sql)
+        
+
             
     def getAllExistingHashes(self):
         hashes = []
@@ -92,16 +100,27 @@ class dbConnection:
         return hashes
 
     def getUser(self, userName):
-        sql = "SELECT `Hash`, `Salt` FROM `photoshare`.`users` WHERE `UserName` = '{0}'".format(userName)
+        sql = "SELECT `Hash`, `Salt`, `LastSignedIn`, `LastSync` FROM `photoshare`.`users` WHERE `UserName` = '{}'".format(userName)
         result = self.executeSQL(sql)
         if result is None:  #No user found
             return False
-        return User(userName, result[0].get('Hash'), result[0].get('Salt'))
+        return User(userName, result[0].get('Hash'), result[0].get('Salt'), result[0].get('LastSignedIn'), result[0].get('LastSync'))
 
+    def userSignedIn(self, user, token):
+        currentTime = time.time()
+        sql = "UPDATE `photoshare`.`users` SET `LastSignedIn` = '{}' , `Token` = '{}' WHERE UserName = '{}'".format(currentTime, token, user.getUserName())
+        self.executeSQL(sql)
+    
+    def userSynced(self, user):
+        currentTime = time.time()
+        sql = "UPDATE `photoshare`.`users` SET `LastSync` = '{}' WHERE UserName = '{}'".format(currentTime, user.getUserName())
+        self.executeSQL(sql)
 
-
-
-
+    def getLastSync(self, user):
+        sql = "SELECT `LastSync` FROM `photoshare`.`users` WHERE `UserName` = '{}'".format(user.getUserName)
+        result = self.executeSQL(sql)
+        return result
+        
     def executeSQL(self, sql):
         try:
             with self.SQL_CONNECTION.cursor() as cursor:

@@ -4,7 +4,7 @@
 	#Version		8 Bytes;	0-255
 	#Instruction	4 Bytes; 0 = Handshake, 1 = Pull, 2 = Push, 99 = Error
 	#Length			8 Bytes
-class psMessage:
+class PSMessage:
 	
     def __init__(self, endian, version, instruction, length, data):
         #Create object from either strings, or byte code. 
@@ -46,7 +46,8 @@ class psMessage:
     def stripToken(self):
         self.data = str(self.data)[16:]
 
-    
+    def getData(self):
+        return self.data
 
     def formatLength(self):
         strVal = str(self.length)
@@ -61,9 +62,45 @@ class psMessage:
             return "Little"
         else:	# b'b'
             return "Big"
-
+   
     @staticmethod
     def padZero(data):
         if data < 10:
             return f'{data:02}'
         return str(data)
+
+class PSMsgFactory:
+
+    VERSION = 0
+    ENDIAN = ''
+
+    
+    def __init__(self, version, endian):
+
+        self.VERSION = int(version)
+        self.ENDIAN = endian
+
+    def generateError(self, errorCode):
+        msg = PSMessage(self.ENDIAN, self.VERSION, 99, 0, errorCode)
+        return msg.getByteString()
+    
+    def generateMessage(self, instruction, data):
+        data = str(data)
+        length = len(data)
+        msg = PSMessage(self.ENDIAN, self.VERSION, instruction, length, data)	
+        return msg.getByteString()
+
+
+'''
+Instructions
+Handshake = 0
+Sync = 1
+NumOfPhotosSending = 2
+SizeOfPhotoBeingSent = 3
+
+Error = 99
+    ErrorCodes
+    Invalid Credentials = 0
+
+    Unknown Error = 99
+'''

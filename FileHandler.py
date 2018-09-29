@@ -129,6 +129,9 @@ class FileHandler:
 		logger.info("Skipped {} duplicates".format(duplicatesSkipped))
 		logger.info("Found {} corrupt photos".format(corruptPhotos))
 
+	
+	def getPhotoPath(self, localPath):
+		return str(self.LIBRARY_DIR) + "/masters/" + localPath
 		
 
 	#Opens file and creates array for all tags supported

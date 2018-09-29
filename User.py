@@ -7,11 +7,12 @@ class User:
     USERNAME = ''
     HASH = ''
     SALT = ''
-    lastLoggedIn = ''
+    lastSignedIn = ''
     lastSync = ''
     token = ''
+    compressionLevel = ''
 
-    def __init__(self, userName=None, hashedPass=None, salt=None):
+    def __init__(self, userName=None, hashedPass=None, salt=None, lastSignedIn=None, lastSync=None):
         if userName is None:
             self.USERNAME = self.generateUserName()
             self.SALT, self.HASH = self.generatePassword()
@@ -19,6 +20,8 @@ class User:
             self.USERNAME = userName
             self.HASH = hashedPass
             self.SALT = salt
+            self.lastSignedIn = lastSignedIn
+            self.lastSync = lastSync
 
     def generateUserName(self):
         userNameValid = False
@@ -75,5 +78,8 @@ class User:
     
     def getToken(self):
         return self.token
+    
+    def getCompressionLevel(self):
+        return self.compressionLevel
 
     

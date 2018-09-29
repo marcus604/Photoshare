@@ -2,7 +2,7 @@ import socket
 import ssl
 import logging
 import time
-from PSMessage import psMessage
+from PSMessage import PSMessage
 from pathlib import Path
 
 HOST = ''
@@ -82,7 +82,7 @@ def receiveMessage(sock):
 	length = int(sock.read(2).decode('utf-8'))
 	data = sock.read(length).decode('utf-8')		#Catches value error above in case this is empty, is this the best way to do it?
 
-	receivedMessage = psMessage(endian, version, instruction, length, data)
+	receivedMessage = PSMessage(endian, version, instruction, length, data)
 	
 	#receivedMessage.print()
 	if not receivedMessage:
@@ -118,7 +118,7 @@ class psUtil:
 		self.version = version			#Float
 
 	def createMessage(self, instruction, length, data):
-		newMsg = psMessage(self.endian, self.version, instruction, length, data)	
+		newMsg = PSMessage(self.endian, self.version, instruction, length, data)	
 		#newMsg.print()
 		msg = newMsg.getByteString()
 		return msg
