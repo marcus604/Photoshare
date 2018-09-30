@@ -132,6 +132,10 @@ class FileHandler:
 	
 	def getPhotoPath(self, localPath):
 		return str(self.LIBRARY_DIR) + "/masters/" + localPath
+
+	def getPhotoName(self, localPath):
+		year,month,day,name = localPath.split("/")
+		return name
 		
 
 	#Opens file and creates array for all tags supported

@@ -33,7 +33,7 @@ passwd = 'hi'
 TOKEN_SIZE = 8
 SQL_USERNAME = 'root'
 SQL_PASSWORD = 'thisIsMySQLPassword'
-BUFFER_SIZE = 1024 #32768 
+BUFFER_SIZE = 16384 #32768 
 pr = cProfile.Profile()
 dbConn = ''
 msgFactory = PSMsgFactory(VERSION, ENDIAN)
@@ -91,19 +91,9 @@ def clientConnected(connection, dbConn):
                                         msg.stripToken()                #Dont need it now, can throw away token
                 
                         if msg.instruction == 1:                #Sync
-                                sync(connection, loggedInUser)
-                                #dbConn.getDatabase()            ########HERE
-                                #fileHandler.getAllFiles()
-                                #sendDatabase()
-                                #sendPhotos()
-                                #initialSync(sock, dbConn)
-                                
-                                while True:
-                                        count = 1
-                                
-
-                                dbConn.userSynced(loggedInUser) 
-                                clientDisconnected(connection) 
+                                sync(connection, loggedInUser, dbConn)
+                                #dbConn.userSynced(loggedInUser) 
+                                #clientDisconnected(connection) 
                                 
 
                                 
@@ -124,7 +114,7 @@ def clientConnected(connection, dbConn):
 
 
 
-def sync(connection, user):
+def sync(connection, user, dbConn):
         lastSync = dbConn.getLastSync(user)
         if lastSync is None:            #First sync, sets as epoch time, jan 1 2017
                 lastSync = 1483228800
@@ -141,11 +131,15 @@ def sync(connection, user):
                 
                 for localPath in photosToSend:
                         fullPath = fileHandler.getPhotoPath(localPath['Dir'])
-                        print(fullPath)
                         sizeOfPhoto = os.path.getsize(fullPath)
                         msg = msgFactory.generateMessage(3, sizeOfPhoto)
                         addMsgToQueue(msg)
-
+                        fileName = fileHandler.getPhotoName(localPath['Dir'])
+                        msg = msgFactory.generateMessage(4, fileName)
+                        addMsgToQueue(msg)
+                        photoHash = dbConn.getHash(localPath['Dir'])
+                        msg = msgFactory.generateMessage(5, photoHash)
+                        addMsgToQueue(msg)
                         with open(fullPath, 'rb') as infile:
                                 l = infile.read(BUFFER_SIZE)
                                 count = 0
@@ -160,12 +154,15 @@ def sync(connection, user):
                                         except (ConnectionError):
                                                 clientDisconnected(connection)
                                                 break
-                                        l = infile.read(BUFFER_SIZE) 
+                                        l = infile.read(BUFFER_SIZE)
+                         
                                 
-                        break
+                        
                 print("all done")
 
-                
+        
+        if True:
+                count = 0
         
         #photosToRecieve = 
         

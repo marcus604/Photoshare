@@ -88,6 +88,11 @@ class dbConnection:
         sql = "SELECT `Dir` FROM `photoshare`.`photos` WHERE `DateAdded` BETWEEN '{}' AND '{}'".format(lastSync, currentTime)
         return self.executeSQL(sql)
         
+    def getHash(self, photoDir):
+        sql = "SELECT `md5Hash` FROM `photoshare`.`photos` WHERE `Dir` = '{}'".format(photoDir)
+        result = self.executeSQL(sql)
+        return result[0].get('md5Hash')
+        
 
             
     def getAllExistingHashes(self):
