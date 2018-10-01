@@ -57,6 +57,6 @@ dailyNotes.txt
 To Do
 *.csv
 *.profile
-
-
 *.csr
+*.swo
+
