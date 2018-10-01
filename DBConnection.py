@@ -61,10 +61,11 @@ class dbConnection:
         self.executeSQL(sql)
         logger.info("Successfully created user {}".format(userName))
 
-    def insertPhoto(self, hash, path, exifValues):
+    def insertPhoto(self, hash, path, exifValues, year, month, day, ptime):
         # Create a new record
             currentTime = time.time()
-            sql = "INSERT INTO `photoshare`.`photos` (`md5Hash`, `dir`, `dateadded`, `make`, `model`, `lensModel`, `flash`, `dateTime`, `ISO`, `aperture`, `focalLength`, `width`, `height`, `exposureTime`, `sharpness`) VALUES (\'{0}\', \'{1}\', \'{2}\', \'{3}\', \'{4}\', \'{5}\', \'{6}\', \'{7}\', \'{8}\', \'{9}\', \'{10}\', \'{11}\', \'{12}\', \'{13}\', \'{14}\');".format(hash, path, currentTime, exifValues[0], exifValues[1], exifValues[2], exifValues[3], exifValues[4], exifValues[5], exifValues[6], exifValues[7], exifValues[8], exifValues[9], exifValues[10], exifValues[11])
+            fileDateTime = "{}:{}:{} {}".format(year, month, day, ptime)
+            sql = "INSERT INTO `photoshare`.`photos` (`md5Hash`, `dir`, `dateadded`, `make`, `model`, `lensModel`, `flash`, `dateTime`, `ISO`, `aperture`, `focalLength`, `width`, `height`, `exposureTime`, `sharpness`) VALUES (\'{0}\', \'{1}\', \'{2}\', \'{3}\', \'{4}\', \'{5}\', \'{6}\', \'{7}\', \'{8}\', \'{9}\', \'{10}\', \'{11}\', \'{12}\', \'{13}\', \'{14}\');".format(hash, path, currentTime, exifValues[0], exifValues[1], exifValues[2], exifValues[3], fileDateTime, exifValues[5], exifValues[6], exifValues[7], exifValues[8], exifValues[9], exifValues[10], exifValues[11])
             self.executeSQL(sql)
 
             # connection is not autocommit by default. So you must commit to save
@@ -93,7 +94,10 @@ class dbConnection:
         result = self.executeSQL(sql)
         return result[0].get('md5Hash')
         
-
+    def getTimeStamp(self, photoDir):
+        sql = "SELECT `DateTime` FROM `photoshare`.`photos` WHERE `Dir` = '{}'".format(photoDir)
+        result = self.executeSQL(sql)
+        return result[0].get('DateTime')
             
     def getAllExistingHashes(self):
         hashes = []
@@ -122,9 +126,9 @@ class dbConnection:
         self.executeSQL(sql)
 
     def getLastSync(self, user):
-        sql = "SELECT `LastSync` FROM `photoshare`.`users` WHERE `UserName` = '{}'".format(user.getUserName)
+        sql = "SELECT `LastSync` FROM `photoshare`.`users` WHERE `UserName` = '{}'".format(user.USERNAME)
         result = self.executeSQL(sql)
-        return result
+        return result[0].get('LastSync')
         
     def executeSQL(self, sql):
         try:

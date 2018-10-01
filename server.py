@@ -92,7 +92,7 @@ def clientConnected(connection, dbConn):
                 
                         if msg.instruction == 1:                #Sync
                                 sync(connection, loggedInUser, dbConn)
-                                #dbConn.userSynced(loggedInUser) 
+                                dbConn.userSynced(loggedInUser) 
                                 #clientDisconnected(connection) 
                                 
 
@@ -116,14 +116,14 @@ def clientConnected(connection, dbConn):
 
 def sync(connection, user, dbConn):
         lastSync = dbConn.getLastSync(user)
-        if lastSync is None:            #First sync, sets as epoch time, jan 1 2017
+        if lastSync is None:            #First sync, sets as time, jan 1 2017
                 lastSync = 1483228800
-        #lastSync = 1537984439          Test for no photos
+        #lastSync = 1483228800  
         photosToSend = dbConn.getRangeOfPhotoPaths(lastSync)
-        numOfPhotos = len(photosToSend)
-        numOfPhotosMsg = msgFactory.generateMessage(2, numOfPhotos)
-        addMsgToQueue(numOfPhotosMsg)
-        if photosToSend: 
+        if photosToSend:
+                numOfPhotos = len(photosToSend)
+                numOfPhotosMsg = msgFactory.generateMessage(2, numOfPhotos)
+                addMsgToQueue(numOfPhotosMsg) 
                 compressionLevel = user.getCompressionLevel()
                 if compressionLevel != '':              #Need to compress photos
                         #fileHandler.compressPhotos(compressionLevel)
@@ -140,6 +140,9 @@ def sync(connection, user, dbConn):
                         photoHash = dbConn.getHash(localPath['Dir'])
                         msg = msgFactory.generateMessage(5, photoHash)
                         addMsgToQueue(msg)
+                        timestamp = dbConn.getTimeStamp(localPath['Dir'])
+                        msg = msgFactory.generateMessage(6, timestamp)
+                        addMsgToQueue(msg)
                         with open(fullPath, 'rb') as infile:
                                 l = infile.read(BUFFER_SIZE)
                                 count = 0
@@ -155,23 +158,14 @@ def sync(connection, user, dbConn):
                                                 clientDisconnected(connection)
                                                 break
                                         l = infile.read(BUFFER_SIZE)
-                         
-                                
-                        
-                print("all done")
-
-        
-        if True:
-                count = 0
-        
+                logger.info("Sent {} photos to {}".format(numOfPhotos, user.USERNAME))
+        else:
+                numOfPhotosMsg = msgFactory.generateMessage(2, 0)
+                addMsgToQueue(numOfPhotosMsg) 
+                logger.info("No Photos to send")                        
+ 
         #photosToRecieve = 
-        
 
-
-        
-
-
-        
         print("stop")
 
 
@@ -233,7 +227,6 @@ def scrubSQL(toScrub):
 def addMsgToQueue(msg):
         with lock:
                 for q in sendQueues.values():
-                        print("added message to q")
                         q.put(msg)
 
 

@@ -52,7 +52,6 @@ class ServerConnection:
             logger.info('Rejected NoSSL {0} {1}'.format(clientAddress[0], clientAddress[1]))
         self.clientSock = clientSock
         self.clientAddress = clientAddress
-        print("hi")
 
     def close(self):
         self.clientSock.close()
@@ -64,7 +63,6 @@ class ServerConnection:
         sock = self.clientSock
         try: 
             sock.sendall(msg)
-            print("message sent")
         except Exception as e:
             print(e)
             raise ConnectionError

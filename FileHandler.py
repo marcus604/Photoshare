@@ -5,6 +5,7 @@ import logging
 import hashlib
 import exifread
 import datetime
+import time
 import shutil
 import ntpath
 import fnmatch
@@ -97,7 +98,7 @@ class FileHandler:
 			
 			exifValues = self.getExifValues(photoFile)
 
-			year, month, day = self.getPhotoDate(exifValues)
+			year, month, day, time = self.getPhotoDate(exifValues)
 
 			photoPath = str(currentPhotoPath)
 
@@ -122,7 +123,7 @@ class FileHandler:
 			thumbnail.save(thumbnailPath)
 
 			newFilePath = year + "/" + month + "/" + day + "/" + str(self.path_leaf(photoPath))
-			dbConn.insertPhoto(currentPhotoHash, newFilePath, exifValues)
+			dbConn.insertPhoto(currentPhotoHash, newFilePath, exifValues, year, month, day, time)
 			photosImported += 1
 
 		logger.info("Imported {} photos".format(photosImported))
@@ -161,14 +162,17 @@ class FileHandler:
 		if exifValues[4] != '':
 			date = exifValues[4].split(" ", 1)
 			year,month,day = date[0].split(":")
+			time = date[1]
 			
 		else:
 			now = datetime.datetime.now()
 			year = str(now.year)
 			month = '{:02d}'.format(now.month)
 			day = '{:02d}'.format(now.day)
+			time = now.strftime("%H:%M:%S")
+			
 
-		return year, month, day
+		return year, month, day, time
 
 	def generateImageThumbnail(self, photo, exifValues):
 		try:
