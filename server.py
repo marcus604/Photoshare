@@ -60,7 +60,6 @@ def clientConnected(connection, dbConn):
                 while True:
                         try:
                                 msg = connection.receiveMessage()
-                                photoshare.timerCheckpoint("Receiving message")
                         except (EOFError, ConnectionError, ValueError, ConnectionResetError):
                                 logger.info("Connection Error")
                                 clientDisconnected(connection)
@@ -70,7 +69,8 @@ def clientConnected(connection, dbConn):
                                 if not user:             #Failed Login           
                                         msg = msgFactory.generateError('0')
                                         addMsgToQueue(msg)      
-                                        time.sleep(1) #Ensures that rejection packet goes out before reset                 
+                                        time.sleep(1) #Ensures that rejection packet goes out before reset
+                                        dbConn.ipFailedAttempt(connection.getClientAddress())                 
                                         clientDisconnected(connection)
                                         break
                                 #Valid User
@@ -196,7 +196,7 @@ def handle_client_send(connection, q):
 """ def handleSessions():
         #Monitor  """
 
-#NEED TO SCRUB SQL
+
 def verifyUser(data, dbConn):
         #Parse Username and password from given data
         #Connect to database and 
@@ -245,80 +245,10 @@ def clientDisconnected(connection):
                 del sendQueues[fd]
                 connection.close()
                 q.put(None)
+        connection.close()
                 
 
 
-def executeSQL(sqlConnection, sql):
-        try:
-
-                with sqlConnection.cursor() as cursor:
-            # Create a new record
-                        cursor.execute(sql)
-
-            # connection is not autocommit by default. So you must commit to save
-            # your changes.
-                        sqlConnection.commit()
-                        result = cursor.fetchall()
-                        cursor.close ()
-                        if result:
-                                return result
-        except pymysql.err.ProgrammingError as e:
-                logger.error(e.args[1])
-        except pymysql.err.InternalError as e:
-                logger.error(e.args[1])
-        
-
-#Will need to catch this
-def createDBandTables(sqlConnection):
-        executeSQL(sqlConnection, 'CREATE DATABASE photoshare COLLATE utf8_general_ci;')
-        executeSQL(sqlConnection, 'CREATE TABLE `photoshare`.`users` ( `UserName` VARCHAR(255) NOT NULL , `Password` VARCHAR(255) NOT NULL , `Salt` VARCHAR(255) NOT NULL , `LastSignedIn` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , PRIMARY KEY (`UserName`(255)));')
-        executeSQL(sqlConnection, 'CREATE TABLE `photoshare`.`photos` ( `md5Hash` VARCHAR(255) NOT NULL , `Make` VARCHAR(255) , `Model` VARCHAR(255) , `LensModel` VARCHAR(255) , `Flash` VARCHAR(255) , `DateTime` VARCHAR(255) , `ISO` VARCHAR(255) , `Aperture` VARCHAR(255) , `FocalLength` VARCHAR(255) , `Width` VARCHAR(255) , `Height` VARCHAR(255) , `ExposureTime` VARCHAR(255) , `Sharpness` VARCHAR(255) , `Type` VARCHAR(255) , `Dir` VARCHAR(255) NOT NULL , PRIMARY KEY (`md5Hash`(255)));')
-
-#Need to check for SQL injection
-#Need to change print statements to log
-def createNewUser(sqlConnection):
-        ph = PasswordHasher()
-        userNameValid = False
-        passwordValid = False
-
-        while not userNameValid:
-                print("Create a New User:")
-                userName = input("Name: ")
-                if len(userName) > 40:
-                        print("Username cannot be longer than 40 characters")
-                else:
-                        if ":" not in userName:
-                                userNameValid = True
-                        else:
-                                print("Username cannot contain the character ':'")
-        
-        while not passwordValid:
-                password = input("Password: ")
-                if len(password) > 64:
-                        print("Password cannot be longer than 64 characters")
-                else:
-                        passwordVerify = input("Enter Password Again: ")
-                        if password == passwordVerify:
-                                passwordValid = True
-                        else:
-                                print("Passwords Do Not Match")
-        salt = secrets.token_hex(32)
-        hash = ph.hash(password + salt)
-        try:
-                with sqlConnection.cursor() as cursor:
-                        sql = 'INSERT INTO `photoshare`.`users` (`UserName`, `Password`, `Salt`) VALUES (%s, %s, %s);'
-                        cursor.execute(sql, (userName, hash, salt,))
-                        sqlConnection.commit()
-                        logger.info('New user {0}'.format(userName))
-        except pymysql.err.IntegrityError:
-                print("User {0} already exists".format(userName))
-                logger.debug("Rejected DuplicateUser {0}".format(userName))
-                createNewUser(sqlConnection)
-        except pymysql.err.DataError as e:
-                logger.error('Failed to create new user {0}'.format(userName))
-        
-
-        
 
 
 
@@ -340,18 +270,13 @@ def finishFirstRun(settings):
         logger.info("Finished First Run")
 
 
-
-def increasePortNumber(port, settings):
-        stringPort = "{}".format(port)
-        settingsFile = "Settings.ini"
-        settingsFP = open(settingsFile, "w")
-        settings.set('Network', 'port', stringPort)
-        settings.write(settingsFP)
-        settingsFP.close()
-
-
-
-
+def isIPBanned(dbConn, ip):
+        failedAttempts = dbConn.getIPFailedAttempts(ip)
+        if failedAttempts:
+                if failedAttempts > 5:
+                        return True
+        return False
+        
 
 
 
@@ -395,6 +320,7 @@ if __name__ == '__main__':
                         dbConn.createDatabase()
                         dbConn.createUserTable()
                         dbConn.createPhotoTable()
+                        dbConn.createIPAddressTable()
                         dbConn.insertUser(User())
                         createAnother = input("Create another user: y/n? ")
                         while createAnother is "y":
@@ -422,7 +348,13 @@ if __name__ == '__main__':
 
         while True:
                 photoshare.timerCheckpoint("Creating socket")
-                connection.processNewConnection()
+                connectionSuccess = connection.processNewConnection()
+                if connectionSuccess is False:
+                        dbConn.ipFailedAttempt(connection.getClientAddress())
+                if isIPBanned(dbConn, connection.getClientAddress()):
+                        clientDisconnected(connection)
+                        continue
+
                 photoshare.timerCheckpoint("Connection")
                 q = queue.Queue()
                 with lock:

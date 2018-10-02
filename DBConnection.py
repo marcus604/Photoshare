@@ -51,6 +51,10 @@ class dbConnection:
         self.executeSQL('CREATE TABLE `photoshare`.`photos` ( `md5Hash` VARCHAR(255) NOT NULL , `Dir` VARCHAR(255) NOT NULL , `DateAdded` VARCHAR(255) NOT NULL , `Make` VARCHAR(255) , `Model` VARCHAR(255) , `LensModel` VARCHAR(255) , `Flash` VARCHAR(255) , `DateTime` VARCHAR(255) , `ISO` VARCHAR(255) , `Aperture` VARCHAR(255) , `FocalLength` VARCHAR(255) , `Width` VARCHAR(255) , `Height` VARCHAR(255) , `ExposureTime` VARCHAR(255) , `Sharpness` VARCHAR(255) , PRIMARY KEY (`md5Hash`(255)));')
         logger.info("Photo table created")
 
+    def createIPAddressTable(self):
+         self.executeSQL('CREATE TABLE `photoshare`.`ipaddresses` ( `Address` VARCHAR(16) NOT NULL , `FailedAttempts` INT(1) NOT NULL , PRIMARY KEY (`Address`(16)));')
+         logger.info("IPAddress table created")
+
     #Could be compressed to single line
     def insertUser(self, user):
         userName = user.getUserName()
@@ -115,6 +119,22 @@ class dbConnection:
             return False
         return User(userName, result[0].get('Hash'), result[0].get('Salt'), result[0].get('LastSignedIn'), result[0].get('LastSync'))
 
+    def getIPFailedAttempts(self, ip):
+        sql = "SELECT `failedAttempts` FROM `photoshare`.`IPAddresses` WHERE `address` = '{}'".format(ip)
+        result = self.executeSQL(sql)
+        if result is None:
+            return result
+        return result[0].get('failedAttempts')
+
+    def ipFailedAttempt(self, ip):
+        numOfAttempts = self.getIPFailedAttempts(ip)
+        if numOfAttempts is None:
+            sql = "INSERT INTO `photoshare`.`ipaddresses` (`Address`, `FailedAttempts`) VALUES (\'{0}\', \'{1}\');".format(ip, 1)
+        else:
+            numOfAttempts = numOfAttempts + 1
+            sql = "UPDATE `photoshare`.`ipaddresses` SET `FailedAttempts` = '{}' WHERE `Address` = '{}'".format(numOfAttempts, ip)
+        self.executeSQL(sql)
+
     def userSignedIn(self, user, token):
         currentTime = time.time()
         sql = "UPDATE `photoshare`.`users` SET `LastSignedIn` = '{}' , `Token` = '{}' WHERE UserName = '{}'".format(currentTime, token, user.getUserName())
@@ -122,14 +142,17 @@ class dbConnection:
     
     def userSynced(self, user):
         currentTime = time.time()
-        sql = "UPDATE `photoshare`.`users` SET `LastSync` = '{}' WHERE UserName = '{}'".format(currentTime, user.getUserName())
+        sql = "UPDATE `photoshare`.`users` SET `LastSync` = '{}' WHERE `UserName` = '{}'".format(currentTime, user.getUserName())
         self.executeSQL(sql)
 
     def getLastSync(self, user):
         sql = "SELECT `LastSync` FROM `photoshare`.`users` WHERE `UserName` = '{}'".format(user.USERNAME)
         result = self.executeSQL(sql)
         return result[0].get('LastSync')
-        
+
+
+
+    #Need to scrub for sql injection    
     def executeSQL(self, sql):
         try:
             with self.SQL_CONNECTION.cursor() as cursor:

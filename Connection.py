@@ -50,6 +50,10 @@ class ServerConnection:
             clientSock = self.sslWrap(clientSock)
         except ssl.SSLEOFError as e:
             logger.info('Rejected NoSSL {0} {1}'.format(clientAddress[0], clientAddress[1]))
+        except OSError as e:
+            logger.info('Connection Failed from: {}'.format(clientAddress[0]))
+            self.clientAddress = clientAddress
+            return False
         self.clientSock = clientSock
         self.clientAddress = clientAddress
 
@@ -87,7 +91,7 @@ class ServerConnection:
         return self.clientSock
 
     def getClientAddress(self):
-        return self.clientAddress
+        return self.clientAddress[0]
 
     #Wraps socket with protocol SSLv23. Supports TLS1.2-1.0
     #Doesnt handle being port scanned
