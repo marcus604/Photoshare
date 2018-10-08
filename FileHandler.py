@@ -137,7 +137,8 @@ class FileHandler:
 	def getPhotoName(self, localPath):
 		year,month,day,name = localPath.split("/")
 		return name
-		
+	
+
 
 	#Opens file and creates array for all tags supported
 	def getExifValues(self, photo):
@@ -174,6 +175,21 @@ class FileHandler:
 
 		return year, month, day, time
 
+	def compressPhoto(self, path):
+		photoFile = open(path, "rb")
+			
+		exifValues = self.getExifValues(photoFile)
+		
+		try:
+			image = Image.open(path)
+		except OSError:			#File is not an image
+			return False
+
+		image = self.keepPhotoOrientation(image, exifValues)
+
+		return image
+
+		
 	def generateImageThumbnail(self, photo, exifValues):
 		try:
 			image = Image.open(photo)
@@ -181,7 +197,12 @@ class FileHandler:
 			return False
 		image.thumbnail((400, 400))
 
-		#Should throw more photos through this
+		image = self.keepPhotoOrientation(image, exifValues)
+		
+		return image
+	
+
+	def keepPhotoOrientation(self, image, exifValues):
 		if exifValues[12] == "Rotated 90 CW":
 			image = image.rotate(270, expand=True)
 		elif exifValues[12] == "Rotated 90 CCW":
@@ -199,10 +220,9 @@ class FileHandler:
 			image = image.transpose(Image.FLIP_LEFT_RIGHT)
 			image = image.rotate(270, expand=True)
 
-		
 		return image
-	#this should work cross platform
-	#grabs just file name, used to create new file path
+
+
 	def path_leaf(self, path):
 		head, tail = ntpath.split(path)
 		return tail or ntpath.basename(head)

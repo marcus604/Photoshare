@@ -96,7 +96,12 @@ Instructions
 Handshake = 0
 Sync = 1
 NumOfPhotosSending = 2
-SizeOfPhotoBeingSent = 3
+SizeOfPhoto = 3
+NameOfPhoto = 4
+HashOfPhoto = 5
+TimestampOfPhoto = 6
+
+RequestPhoto = 10
 
 Error = 99
     ErrorCodes

@@ -20,6 +20,8 @@ import shutil
 import cProfile
 import configparser
 import pdb
+import random
+from io import BytesIO
 
 ENDIAN = 'b'
 VERSION = 1
@@ -91,7 +93,7 @@ def clientConnected(connection, dbConn):
                                         msg.stripToken()                #Dont need it now, can throw away token
                 
                         if msg.instruction == 1:                #Sync
-                                sync(connection, loggedInUser, dbConn)
+                                sync(connection, loggedInUser, dbConn, msg.data)
                                 dbConn.userSynced(loggedInUser) 
                                 #clientDisconnected(connection) 
                                 
@@ -101,7 +103,8 @@ def clientConnected(connection, dbConn):
                         if msg.instruction == 2:                #Client Sending Photos
                                 print("instruction 2")
                                 
-                                
+                        if msg.instruction == 10:               #Client requesting specific image
+                                retrievePhoto(dbConn, msg.data)
                         """ elif msg.instruction == 2:          #02
                                 print """
         except Exception as e:
@@ -112,9 +115,28 @@ def clientConnected(connection, dbConn):
 
 
 
+def retrievePhoto(dbConn, hash):
+        path = dbConn.getPhotoPath(hash)
+        fullPath = fileHandler.getPhotoPath(path)
+        sizeOfPhoto = os.path.getsize(fullPath)
+        msg = msgFactory.generateMessage(3, sizeOfPhoto)
+        addMsgToQueue(msg)
+        with open(fullPath, 'rb') as infile:
+                l = infile.read(BUFFER_SIZE)
+                count = 0
+                while l:
+                        try:
+                                count += 1
+                                addMsgToQueue(l)
+                        except (ConnectionError):
+                                clientDisconnected(connection)
+                                break
+                        l = infile.read(BUFFER_SIZE)
+        logger.info("Sent photo with size {}".format(sizeOfPhoto))
 
 
-def sync(connection, user, dbConn):
+
+def sync(connection, user, dbConn, compressionEnabled):
         lastSync = dbConn.getLastSync(user)
         if lastSync is None:            #First sync, sets as time, jan 1 2017
                 lastSync = 1483228800
@@ -124,14 +146,30 @@ def sync(connection, user, dbConn):
                 numOfPhotos = len(photosToSend)
                 numOfPhotosMsg = msgFactory.generateMessage(2, numOfPhotos)
                 addMsgToQueue(numOfPhotosMsg) 
-                compressionLevel = user.getCompressionLevel()
-                if compressionLevel != '':              #Need to compress photos
+                if compressionEnabled == "1":              #Need to compress photos
                         #fileHandler.compressPhotos(compressionLevel)
                         print("need to compress")
                 
                 for localPath in photosToSend:
                         fullPath = fileHandler.getPhotoPath(localPath['Dir'])
+                        
+                        if compressionEnabled == "1":              #Need to compress photos
+                                #fileHandler.compressPhotos(compressionLevel)
+                                print("need to compress")
+                                imageToCompress = Image.open(fullPath)
+                                photoFile = open(fullPath, "rb")
+                                exifValues = fileHandler.getExifValues(photoFile)
+                                imageToCompress = fileHandler.keepPhotoOrientation(imageToCompress, exifValues)
+                                filename, fileExtension = os.path.splitext(fullPath)
+                                tmpName = "tmp{}".format(fileExtension)
+                                if fileExtension == ".png":
+                                        imageToCompress = imageToCompress.convert(mode='P', palette=Image.ADAPTIVE)
+                                imageToCompress.save(tmpName,optimize=True,quality=10)
+                                fullPath = tmpName
+                        
+                        
                         sizeOfPhoto = os.path.getsize(fullPath)
+                        
                         msg = msgFactory.generateMessage(3, sizeOfPhoto)
                         addMsgToQueue(msg)
                         fileName = fileHandler.getPhotoName(localPath['Dir'])
@@ -189,6 +227,7 @@ def handle_client_send(connection, q):
                 if msg == None: break
                 try:
                         connection.sendMessage(msg)
+                        print("sent message {}".format(random.randint(1,9)))
                 except ConnectionError as e:
                         clientDisconnected(connection)
                         break
@@ -227,6 +266,7 @@ def scrubSQL(toScrub):
 def addMsgToQueue(msg):
         with lock:
                 for q in sendQueues.values():
+                        print("added msg to q {}".format(random.randint(1,9)))
                         q.put(msg)
 
 
@@ -235,7 +275,10 @@ def addMsgToQueue(msg):
 def clientDisconnected(connection):
         """ Ensure queue is cleaned up and socket closed when a client
         disconnects """
-        fd = connection.getClientSocket().fileno()
+        clientSock = connection.getClientSocket()
+        if clientSock == "":
+                return
+        fd = clientSock.fileno()
         with lock:
                 # Get send queue for this client
                 q = sendQueues.get(fd, None)
@@ -243,7 +286,6 @@ def clientDisconnected(connection):
         # been handled
         if q:
                 del sendQueues[fd]
-                connection.close()
                 q.put(None)
         connection.close()
                 
@@ -349,11 +391,15 @@ if __name__ == '__main__':
         while True:
                 photoshare.timerCheckpoint("Creating socket")
                 connectionSuccess = connection.processNewConnection()
+                if isIPBanned(dbConn, connection.getClientAddress()):
+                        logger.info("Banned IP: {}".format(connection.getClientAddress()))
+                        connection.close()
+                        continue
                 if connectionSuccess is False:
                         dbConn.ipFailedAttempt(connection.getClientAddress())
-                if isIPBanned(dbConn, connection.getClientAddress()):
-                        clientDisconnected(connection)
+                        connection.close()
                         continue
+               
 
                 photoshare.timerCheckpoint("Connection")
                 q = queue.Queue()
