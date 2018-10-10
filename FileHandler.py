@@ -4,7 +4,7 @@ import pdb
 import logging
 import hashlib
 import exifread
-import datetime
+from datetime import *
 import time
 import shutil
 import ntpath
@@ -21,9 +21,9 @@ class FileHandler:
 	
 
 	#CONSTANTS
-	IMAGE_EXTENSIONS = 	[".jpg", ".png", ".tiff", ".gif", ".jpeg"]
-	VIDEO_EXTENSIONS = 	[".mp4", ".mov", ".avi", ".mkv"]
-	ALL_EXTENSIONS = 	IMAGE_EXTENSIONS + VIDEO_EXTENSIONS
+	IMAGE_EXTENSIONS = 	[".jpg", ".png", ".jpeg"]
+	#VIDEO_EXTENSIONS = 	[".mp4", ".mov", ".avi", ".mkv"]
+	ALL_EXTENSIONS = 	IMAGE_EXTENSIONS #+ VIDEO_EXTENSIONS
 
 	#Ensures case insesitivity
 	numOfExtensions = len(ALL_EXTENSIONS)	
@@ -39,10 +39,12 @@ class FileHandler:
 	
 	LIBRARY_DIR = ''
 	IMPORT_DIR = ''
+	TEMP_DIR = ''
 
-	def __init__(self, libraryDir, importDir):
+	def __init__(self, libraryDir, importDir, tempDir):
 		self.LIBRARY_DIR = Path(libraryDir)
 		self.IMPORT_DIR = Path(importDir)
+		self.TEMP_DIR = Path(tempDir)
 
 
 	#Very likely user could already have folders created
@@ -54,7 +56,64 @@ class FileHandler:
 			raise LibraryPathNotEmptyError
 		if not os.path.exists(self.IMPORT_DIR):
 			os.makedirs(self.IMPORT_DIR)
+		if not os.path.exists(self.TEMP_DIR):
+			os.makedirs(self.TEMP_DIR)
 
+
+	def importPhoto(self, dbConn, photoPath, timeStamp, hashes):
+
+		exifValues=[]
+		photoHash = self.md5Hash(photoPath)
+
+		if hashes == True:		#Used for receiving individual photos from client
+			#Get existing hashes to check for duplicates
+			hashes = dbConn.getAllExistingHashes()
+
+		if hashes:	#Anything to check against
+				duplicate = False
+				for h in hashes:
+					if h == photoHash:
+						raise ImportErrorDuplicate
+
+		hashes.append(photoHash)
+		
+		photoFile = open(photoPath, "rb")
+			
+		exifValues = self.getExifValues(photoFile)
+
+		if timeStamp:
+			year, month, day, time = self.getPhotoDateFromClient(timeStamp)
+		else:
+			year, month, day, time = self.getPhotoDate(exifValues)
+
+		photoPath = str(photoPath)
+
+		newDirPath = Path(str(self.LIBRARY_DIR) + "/masters/" + year + "/" + month + "/" + day + "/")
+		newThumbnailPath = Path(str(self.LIBRARY_DIR) + "/thumbnails/" + year + "/" + month + "/" + day + "/")
+		
+		thumbnail = self.generateImageThumbnail(photoPath, exifValues)#.save(thumbnailPath)
+		if not thumbnail:
+			raise ImportErrorPhotoInvalid
+
+		#Do I have permission, is there enough space, need to catch this
+		if not os.path.exists(newDirPath):
+			os.makedirs(newDirPath)
+			os.makedirs(newThumbnailPath)
+
+		#Creates thumbnail with proper orientation
+		thumbnailPath = Path(str(self.LIBRARY_DIR) + "/thumbnails/" + year + "/" + month + "/" + day + "/" + str(self.path_leaf(photoPath)))
+		
+
+		#Copies file to proper library location
+		shutil.copy2(photoPath, newDirPath)
+
+		
+		thumbnail.save(thumbnailPath)
+
+		newFilePath = year + "/" + month + "/" + day + "/" + str(self.path_leaf(photoPath))
+		dbConn.insertPhoto(photoHash, newFilePath, exifValues, year, month, day, time)
+
+		return hashes
 
 
 	def importPhotos(self, dbConn):
@@ -62,7 +121,7 @@ class FileHandler:
 		#Logging Variables
 		photosImported = 0
 		duplicatesSkipped = 0
-		corruptPhotos = 0
+		invalidFiles = 0
 
 		filesToImport = self.collectFilesToImport()
 		if not filesToImport:
@@ -77,58 +136,21 @@ class FileHandler:
 		for currentPhotoPath in filesToImport:
 			print("Processing file {} of {}".format(progressCount, len(filesToImport)))
 			progressCount += 1
-			exifValues=[]
-			currentPhotoHash = self.md5Hash(currentPhotoPath)
-
-			if hashes:	#Anything to check against
-				duplicate = False
-				for h in hashes:
-					if h == currentPhotoHash:
-						duplicate = True
-						break
-				if duplicate:				#Automatically skips duplicate, could add setting that would give user control
-					duplicatesSkipped += 1
-					continue
+			try:
+				hashes = self.importPhoto(dbConn, currentPhotoPath, None, hashes)
+				photosImported += 1
+			except ImportErrorDuplicate:
+				duplicatesSkipped +=1
+			except ImportErrorPhotoInvalid:
+				invalidFiles += 1
 			
-			#Check that batch of photos being imported doesnt have duplicates
-			#Doesnt require asking db for hashes again
-			hashes.append(currentPhotoHash)
-
-			photoFile = open(currentPhotoPath, "rb")
-			
-			exifValues = self.getExifValues(photoFile)
-
-			year, month, day, time = self.getPhotoDate(exifValues)
-
-			photoPath = str(currentPhotoPath)
-
-			newDirPath = Path(str(self.LIBRARY_DIR) + "/masters/" + year + "/" + month + "/" + day + "/")
-			newThumbnailPath = Path(str(self.LIBRARY_DIR) + "/thumbnails/" + year + "/" + month + "/" + day + "/")
-			
-
-			#Do I have permission, is there enough space, need to catch this
-			if not os.path.exists(newDirPath):
-				os.makedirs(newDirPath)
-				os.makedirs(newThumbnailPath)
-
-			#Copies file to proper library location
-			shutil.copy2(photoPath, newDirPath)
-
-			#Creates thumbnail with proper orientation
-			thumbnailPath = Path(str(self.LIBRARY_DIR) + "/thumbnails/" + year + "/" + month + "/" + day + "/" + str(self.path_leaf(photoPath)))
-			thumbnail = self.generateImageThumbnail(currentPhotoPath, exifValues)#.save(thumbnailPath)
-			if not thumbnail:
-				corruptPhotos += 1
-				continue
-			thumbnail.save(thumbnailPath)
-
-			newFilePath = year + "/" + month + "/" + day + "/" + str(self.path_leaf(photoPath))
-			dbConn.insertPhoto(currentPhotoHash, newFilePath, exifValues, year, month, day, time)
-			photosImported += 1
 
 		logger.info("Imported {} photos".format(photosImported))
 		logger.info("Skipped {} duplicates".format(duplicatesSkipped))
-		logger.info("Found {} corrupt photos".format(corruptPhotos))
+		logger.info("Skipped {} invalid files".format(invalidFiles))
+
+	def getTempFilePath(self, name):
+		return str(self.TEMP_DIR) + "/" + name
 
 	
 	def getPhotoPath(self, localPath):
@@ -138,7 +160,7 @@ class FileHandler:
 		year,month,day,name = localPath.split("/")
 		return name
 	
-
+	
 
 	#Opens file and creates array for all tags supported
 	def getExifValues(self, photo):
@@ -158,6 +180,17 @@ class FileHandler:
 		
 		return exifValues
 
+	#Ex. 2018-09-13, 8:55 PM
+	#Parses, strips comma, and converts to 24 hour
+	def getPhotoDateFromClient(self, timeStamp):
+		date = timeStamp.split(" ", 1)
+		year,month,day = date[0].split("-")
+		day = day[:-1]
+		time = date[1]
+		time = datetime.strptime(time, '%I:%M %p')
+		time = time.strftime("%H:%M:%S")
+		return year, month, day, time
+
 	def getPhotoDate(self, exifValues):
 		#Extract year/month/day from exif data, if no date available, use todays
 		if exifValues[4] != '':
@@ -166,7 +199,7 @@ class FileHandler:
 			time = date[1]
 			
 		else:
-			now = datetime.datetime.now()
+			now = datetime.now()
 			year = str(now.year)
 			month = '{:02d}'.format(now.month)
 			day = '{:02d}'.format(now.day)
@@ -240,6 +273,11 @@ class FileHandler:
 		return [os.path.join(r, fn) for r, ds, fs in os.walk(self.IMPORT_DIR) for fn in fs if any(fn.endswith(ext) for ext in self.ALL_EXTENSIONS)]
 
 
+class ImportErrorPhotoInvalid(Exception):
+	pass
+
+class ImportErrorDuplicate(Exception):
+	pass
 
 class LibraryPathNotEmptyError(Exception):
 	pass

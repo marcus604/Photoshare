@@ -94,8 +94,7 @@ def clientConnected(connection, dbConn):
                 
                         if msg.instruction == 1:                #Sync
                                 sync(connection, loggedInUser, dbConn, msg.data)
-                                dbConn.userSynced(loggedInUser) 
-                                #clientDisconnected(connection) 
+                                dbConn.userSynced(loggedInUser)  
                                 
 
                                 
@@ -105,6 +104,8 @@ def clientConnected(connection, dbConn):
                                 
                         if msg.instruction == 10:               #Client requesting specific image
                                 retrievePhoto(dbConn, msg.data)
+                        if msg.instruction == 20:
+                                receivePhoto(dbConn, msg.data)
                         """ elif msg.instruction == 2:          #02
                                 print """
         except Exception as e:
@@ -113,7 +114,33 @@ def clientConnected(connection, dbConn):
 
 
 
-
+def receivePhoto(dbConn, photoName):
+        timeStampMsg = connection.receiveMessage()
+        timeStampMsg.stripToken()
+        fileSizeMsg = connection.receiveMessage()
+        fileSizeMsg.stripToken()
+        
+        timeStamp = timeStampMsg.data
+        fileSize = int(fileSizeMsg.data)
+        tmpPath = fileHandler.getTempFilePath(photoName)
+        tmpFile = open(tmpPath, "wb")
+        connection.receivePhoto(tmpFile, fileSize)
+        tmpFile.close()
+        try:            #Import photo, true is added to tell method to generate all previous hashes
+                fileHandler.importPhoto(dbConn, tmpPath, timeStamp, True)
+                msg = msgFactory.generateMessage(20, 0)
+                logger.info("Imported Photo from client")
+        except ImportErrorDuplicate:
+                msg = msgFactory.generateMessage(20, 1)
+                logger.info("Rejected duplicate photo from client")
+        except ImportErrorPhotoInvalid:
+                msg = msgFactory.generateMessage(20, 2)
+                logger.info("Rejected invalid photo from client")
+        os.remove(tmpPath)
+        addMsgToQueue(msg)
+        
+        
+        
 
 def retrievePhoto(dbConn, hash):
         path = dbConn.getPhotoPath(hash)
@@ -136,12 +163,14 @@ def retrievePhoto(dbConn, hash):
 
 
 
+
 def sync(connection, user, dbConn, compressionEnabled):
         lastSync = dbConn.getLastSync(user)
         if lastSync is None:            #First sync, sets as time, jan 1 2017
                 lastSync = 1483228800
         #lastSync = 1483228800  
         photosToSend = dbConn.getRangeOfPhotoPaths(lastSync)
+        print(photosToSend)
         if photosToSend:
                 numOfPhotos = len(photosToSend)
                 numOfPhotosMsg = msgFactory.generateMessage(2, numOfPhotos)
@@ -356,7 +385,7 @@ if __name__ == '__main__':
         try:
                 dbConn = dbConnection(settings)
                 dbConn.connect()
-                fileHandler = FileHandler(settings.get('DIR', 'Library'), settings.get('DIR', 'Import'))
+                fileHandler = FileHandler(settings.get('DIR', 'Library'), settings.get('DIR', 'Import'), settings.get('DIR', 'Temp'))
                 if settings.getboolean('MAIN', 'firstRun'):
                         fileHandler.createDirectories()
                         dbConn.createDatabase()
