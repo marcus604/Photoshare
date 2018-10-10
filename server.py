@@ -170,31 +170,30 @@ def sync(connection, user, dbConn, compressionEnabled):
                 lastSync = 1483228800
         #lastSync = 1483228800  
         photosToSend = dbConn.getRangeOfPhotoPaths(lastSync)
-        print(photosToSend)
+        #print(photosToSend)
         if photosToSend:
                 numOfPhotos = len(photosToSend)
                 numOfPhotosMsg = msgFactory.generateMessage(2, numOfPhotos)
                 addMsgToQueue(numOfPhotosMsg) 
-                if compressionEnabled == "1":              #Need to compress photos
-                        #fileHandler.compressPhotos(compressionLevel)
-                        print("need to compress")
-                
+                photoshare.timerCheckpoint("Starting Sync")
                 for localPath in photosToSend:
                         fullPath = fileHandler.getPhotoPath(localPath['Dir'])
-                        
+                        #print(fullPath)
+                        #print("Original size: {}".format(os.path.getsize(fullPath)))
                         if compressionEnabled == "1":              #Need to compress photos
-                                #fileHandler.compressPhotos(compressionLevel)
-                                print("need to compress")
                                 imageToCompress = Image.open(fullPath)
                                 photoFile = open(fullPath, "rb")
                                 exifValues = fileHandler.getExifValues(photoFile)
                                 imageToCompress = fileHandler.keepPhotoOrientation(imageToCompress, exifValues)
                                 filename, fileExtension = os.path.splitext(fullPath)
-                                tmpName = "tmp{}".format(fileExtension)
+                                tmpName = fileHandler.getTempFilePath("tmp" + fileExtension)
                                 if fileExtension == ".png":
                                         imageToCompress = imageToCompress.convert(mode='P', palette=Image.ADAPTIVE)
                                 imageToCompress.save(tmpName,optimize=True,quality=10)
                                 fullPath = tmpName
+                                photoshare.timerCheckpoint("Compressing photo")
+                                #print("Compressed Size : {}".format(os.path.getsize(fullPath)))
+                                
                         
                         
                         sizeOfPhoto = os.path.getsize(fullPath)
@@ -225,6 +224,9 @@ def sync(connection, user, dbConn, compressionEnabled):
                                                 clientDisconnected(connection)
                                                 break
                                         l = infile.read(BUFFER_SIZE)
+                        if compressionEnabled == "1":           #Remove temporary file 
+                                os.remove(tmpName)
+                        photoshare.timerCheckpoint("Sending Photo")
                 logger.info("Sent {} photos to {}".format(numOfPhotos, user.USERNAME))
         else:
                 numOfPhotosMsg = msgFactory.generateMessage(2, 0)
@@ -256,7 +258,7 @@ def handle_client_send(connection, q):
                 if msg == None: break
                 try:
                         connection.sendMessage(msg)
-                        print("sent message {}".format(random.randint(1,9)))
+                        #print("sent message {}".format(random.randint(1,9)))
                 except ConnectionError as e:
                         clientDisconnected(connection)
                         break
@@ -295,7 +297,7 @@ def scrubSQL(toScrub):
 def addMsgToQueue(msg):
         with lock:
                 for q in sendQueues.values():
-                        print("added msg to q {}".format(random.randint(1,9)))
+                        #print("added msg to q {}".format(random.randint(1,9)))
                         q.put(msg)
 
 
