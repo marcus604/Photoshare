@@ -94,23 +94,15 @@ def clientConnected(connection, dbConn):
                 
                         if msg.instruction == 1:                #Sync
                                 sync(connection, loggedInUser, dbConn, msg.data)
-                                dbConn.userSynced(loggedInUser)  
-                                
-
-                                
-
-                        if msg.instruction == 2:                #Client Sending Photos
-                                print("instruction 2")
-                                
+                                dbConn.userSynced(loggedInUser)                                 
                         if msg.instruction == 10:               #Client requesting specific image
                                 retrievePhoto(dbConn, msg.data)
-                        if msg.instruction == 20:
+                        if msg.instruction == 20:               #Incoming new photo
                                 receivePhoto(dbConn, msg.data)
                                 dbConn.userSynced(loggedInUser) 
-                        if msg.instruction == 30:
+                        if msg.instruction == 30:               #incoming edited photo
                                 updatePhoto(dbConn, msg.data)
-                        """ elif msg.instruction == 2:          #02
-                                print """
+                        
         except Exception as e:
                 print(e)
                 clientDisconnected(connection)
