@@ -106,12 +106,36 @@ def clientConnected(connection, dbConn):
                                 retrievePhoto(dbConn, msg.data)
                         if msg.instruction == 20:
                                 receivePhoto(dbConn, msg.data)
+                                dbConn.userSynced(loggedInUser) 
+                        if msg.instruction == 30:
+                                updatePhoto(dbConn, msg.data)
                         """ elif msg.instruction == 2:          #02
                                 print """
         except Exception as e:
                 print(e)
                 clientDisconnected(connection)
 
+def updatePhoto(dbConn, photoHash):
+        fileSizeMsg = connection.receiveMessage()
+        fileSizeMsg.stripToken()
+        fileSize = int(fileSizeMsg.data)
+        print("new file size {}".format(fileSize))
+        photoPath, photoName = dbConn.getPhotoNameandPath(photoHash)
+        tmpPath = fileHandler.getTempFilePath(photoName)
+        tmpFile = open(tmpPath, "wb")
+        try:
+                connection.receivePhoto(tmpFile, fileSize)
+                tmpFile.close()
+                fileHandler.updatePhoto(tmpPath, photoPath)
+                msg = msgFactory.generateMessage(30, 0)
+                logger.info("Updated photo from client")
+        except ImportErrorPhotoInvalid:
+                msg = msgFactory.generateMessage(30, 1)
+        except:
+                msg = msgFactory.generateMessage(30, 1)
+        os.remove(tmpPath)
+        addMsgToQueue(msg)
+        
 
 
 def receivePhoto(dbConn, photoName):
@@ -181,20 +205,10 @@ def sync(connection, user, dbConn, compressionEnabled):
                         #print(fullPath)
                         #print("Original size: {}".format(os.path.getsize(fullPath)))
                         if compressionEnabled == "1":              #Need to compress photos
-                                imageToCompress = Image.open(fullPath)
-                                photoFile = open(fullPath, "rb")
-                                exifValues = fileHandler.getExifValues(photoFile)
-                                imageToCompress = fileHandler.keepPhotoOrientation(imageToCompress, exifValues)
-                                filename, fileExtension = os.path.splitext(fullPath)
-                                tmpName = fileHandler.getTempFilePath("tmp" + fileExtension)
-                                if fileExtension == ".png":
-                                        imageToCompress = imageToCompress.convert(mode='P', palette=Image.ADAPTIVE)
-                                imageToCompress.save(tmpName,optimize=True,quality=10)
-                                fullPath = tmpName
-                                photoshare.timerCheckpoint("Compressing photo")
-                                #print("Compressed Size : {}".format(os.path.getsize(fullPath)))
+                                thumbnailPath = fileHandler.getThumbnailPath(localPath['Dir'])
+                                fullPath = thumbnailPath
                                 
-                        
+                                
                         
                         sizeOfPhoto = os.path.getsize(fullPath)
                         
@@ -224,8 +238,6 @@ def sync(connection, user, dbConn, compressionEnabled):
                                                 clientDisconnected(connection)
                                                 break
                                         l = infile.read(BUFFER_SIZE)
-                        if compressionEnabled == "1":           #Remove temporary file 
-                                os.remove(tmpName)
                         photoshare.timerCheckpoint("Sending Photo")
                 logger.info("Sent {} photos to {}".format(numOfPhotos, user.USERNAME))
         else:

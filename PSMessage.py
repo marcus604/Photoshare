@@ -105,6 +105,8 @@ RequestPhoto =          10      Hash of requested photo
 
 ClientToServerPhoto =   20      Name of photo  
 
+EditedPhototoServer =   30      Original hash of photo
+
 Error = 99
     ErrorCodes
     Invalid Credentials = 0

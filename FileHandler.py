@@ -115,7 +115,19 @@ class FileHandler:
 
 		return hashes
 
+	def updatePhoto(self, tmpPath, originalPath):
+		fullPath = Path(str(self.LIBRARY_DIR) + "/masters/" + originalPath)
+		thumbnailPath = Path(str(self.LIBRARY_DIR) + "/thumbnails/" + originalPath)
+		
+		thumbnail = self.updateImageThumbnail(tmpPath)
+		if not thumbnail:
+			raise ImportErrorPhotoInvalid		
 
+		#Copies file to proper library location
+		shutil.copy2(tmpPath, fullPath)		
+		thumbnail.save(thumbnailPath)
+
+	
 	def importPhotos(self, dbConn):
 		logger.info("Starting photo import")
 		#Logging Variables
@@ -155,6 +167,9 @@ class FileHandler:
 	
 	def getPhotoPath(self, localPath):
 		return str(self.LIBRARY_DIR) + "/masters/" + localPath
+
+	def getThumbnailPath(self, localPath):
+		return str(self.LIBRARY_DIR) + "/thumbnails/" + localPath
 
 	def getPhotoName(self, localPath):
 		year,month,day,name = localPath.split("/")
@@ -228,12 +243,20 @@ class FileHandler:
 			image = Image.open(photo)
 		except OSError:			#File is not an image
 			return False
-		image.thumbnail((400, 400))
+		image.thumbnail((2400, 2400))
 
 		image = self.keepPhotoOrientation(image, exifValues)
 		
 		return image
 	
+	def updateImageThumbnail(self, photo):
+		try:
+			image = Image.open(photo)
+		except OSError:
+			return False
+		image.thumbnail((800, 800))
+
+		return image
 
 	def keepPhotoOrientation(self, image, exifValues):
 		if exifValues[12] == "Rotated 90 CW":

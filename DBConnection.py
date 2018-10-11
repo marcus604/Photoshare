@@ -107,6 +107,11 @@ class dbConnection:
         sql = "SELECT `Dir` FROM `photoshare`.`photos` WHERE `md5Hash` = '{}'".format(hash)
         result = self.executeSQL(sql)
         return result[0].get('Dir')
+
+    def getPhotoNameandPath(self, hash):
+        photoPath = self.getPhotoPath(hash)
+        year,month,day,name = photoPath.split("/")
+        return photoPath, name
             
     def getAllExistingHashes(self):
         hashes = []
