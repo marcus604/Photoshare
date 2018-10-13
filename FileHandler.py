@@ -237,6 +237,17 @@ class FileHandler:
 
 		return image
 
+	def deletePhoto(self, localPath):
+		fullPath = Path(str(self.LIBRARY_DIR) + "/masters/" + localPath)
+		thumbnailPath = Path(str(self.LIBRARY_DIR) + "/thumbnails/" + localPath)
+		try:
+			os.remove(fullPath)
+			os.remove(thumbnailPath)
+		except OSError:
+			return False
+		return True
+
+		
 		
 	def generateImageThumbnail(self, photo, exifValues):
 		try:

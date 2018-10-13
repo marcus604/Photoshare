@@ -106,7 +106,9 @@ class dbConnection:
     def getPhotoPath(self, hash):
         sql = "SELECT `Dir` FROM `photoshare`.`photos` WHERE `md5Hash` = '{}'".format(hash)
         result = self.executeSQL(sql)
-        return result[0].get('Dir')
+        if result:
+            return result[0].get('Dir')
+        
 
     def getPhotoNameandPath(self, hash):
         photoPath = self.getPhotoPath(hash)
@@ -121,6 +123,16 @@ class dbConnection:
             for row in result:
                 hashes.append(row['md5Hash'])
         return hashes
+
+    #Returns file path if successfully removed from database
+    def deletePhoto(self, hash):
+        localPath = self.getPhotoPath(hash)
+        if localPath:
+            sql = "DELETE FROM `photoshare`.`photos` WHERE `md5Hash` = '{}'".format(hash)
+            result = self.executeSQLReturnRowCount(sql)
+            if result:
+                return localPath
+        
 
     def getUser(self, userName):
         sql = "SELECT `Hash`, `Salt`, `LastSignedIn`, `LastSync` FROM `photoshare`.`users` WHERE `UserName` = '{}'".format(userName)
@@ -161,6 +173,25 @@ class dbConnection:
         return result[0].get('LastSync')
 
 
+    #Used for DELETE statements as rowcount only way to determine success
+    def executeSQLReturnRowCount(self, sql):
+        try:
+            with self.SQL_CONNECTION.cursor() as cursor:
+                cursor.execute(sql)
+                self.SQL_CONNECTION.commit()
+                result = cursor.rowcount
+                cursor.close()
+                if result:
+                    return result
+        except pymysql.err.ProgrammingError as e:
+            logger.error(e.args[1])
+            raise e
+        except pymysql.err.InternalError as e:
+            logger.error(e.args[1])
+            raise e
+        except pymysql.err.Error as e:
+            logger.error(e.args[1])
+            raise e
 
     #Need to scrub for sql injection    
     def executeSQL(self, sql):

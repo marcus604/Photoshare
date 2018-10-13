@@ -92,8 +92,8 @@ class PSMsgFactory:
 
 
 '''
-Instruction
-Handshake =             0
+Instruction                     Data
+Handshake =             0       
 Sync =                  1
 NumOfPhotosSending =    2
 SizeOfPhoto =           3
@@ -106,6 +106,8 @@ RequestPhoto =          10      Hash of requested photo
 ClientToServerPhoto =   20      Name of photo  
 
 EditedPhototoServer =   30      Original hash of photo
+
+DeletePhoto         =   50      hash of photo
 
 Error = 99
     ErrorCodes

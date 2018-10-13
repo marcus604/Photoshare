@@ -102,11 +102,26 @@ def clientConnected(connection, dbConn):
                                 dbConn.userSynced(loggedInUser) 
                         if msg.instruction == 30:               #incoming edited photo
                                 updatePhoto(dbConn, msg.data)
+                        if msg.instruction == 50:
+                                deletePhoto(dbConn, msg.data)
                         
         except Exception as e:
                 print(e)
                 clientDisconnected(connection)
 
+def deletePhoto(dbConn, hash):
+        localPath = dbConn.deletePhoto(hash)
+
+        if localPath and fileHandler.deletePhoto(localPath):
+                msg = msgFactory.generateMessage(50, 0) #Success
+                logger.info("Deleted Photo at {}".format(localPath))
+        else:
+                msg = msgFactory.generateMessage(50, 10)   #Failure
+                logger.error("Could not delete photo: {}".format(hash))
+
+        addMsgToQueue(msg)
+        
+        
 def updatePhoto(dbConn, photoHash):
         fileSizeMsg = connection.receiveMessage()
         fileSizeMsg.stripToken()
