@@ -102,12 +102,44 @@ def clientConnected(connection, dbConn):
                                 dbConn.userSynced(loggedInUser) 
                         if msg.instruction == 30:               #incoming edited photo
                                 updatePhoto(dbConn, msg.data)
-                        if msg.instruction == 50:
+                        if msg.instruction == 40:               #Create new album
+                                createAlbum(dbConn, msg.data)
+                        if msg.instruction == 45:               #Add photo to album
+                                addPhotoToAlbum(dbConn, msg.data)
+                        if msg.instruction == 50:               #Delete photo
                                 deletePhoto(dbConn, msg.data)
                         
         except Exception as e:
                 print(e)
                 clientDisconnected(connection)
+
+def createAlbum(dbConn, name):
+        userCreatedMsg = connection.receiveMessage()
+        userCreatedMsg.stripToken()
+        userCreated = int(userCreatedMsg.data)
+        if dbConn.createAlbum(name, userCreated):
+                msg = msgFactory.generateMessage(40, 0) #Success
+                logger.info("Created album: {}".format(name))
+        else:
+                msg = msgFactory.generateMessage(40, 10)   #Failure
+                logger.error("Could not create album: {}".format(name))
+
+        addMsgToQueue(msg)
+
+def addPhotoToAlbum(dbConn, album):
+        print("adding to album {}".format(album))
+        photoToAddMsg = connection.receiveMessage()
+        photoToAddMsg.stripToken()
+        photoHash = photoToAddMsg.data
+        print(photoHash)
+        if dbConn.addPhotoToAlbum(photoHash, album):
+                msg = msgFactory.generateMessage(45, 0) #Success
+                logger.info("Added photo to album {}".format(album))
+        else:
+                msg = msgFactory.generateMessage(45, 10)   #Failure
+                logger.error("Could not add to album: {}".format(album))
+
+        addMsgToQueue(msg)
 
 def deletePhoto(dbConn, hash):
         localPath = dbConn.deletePhoto(hash)
@@ -399,7 +431,7 @@ if __name__ == '__main__':
         #increasePortNumber(port, settings)
 
         
-
+        
 
         #Connect to DB host with provided username and password
         #Create database and tables if first run of app
@@ -412,6 +444,8 @@ if __name__ == '__main__':
                         dbConn.createDatabase()
                         dbConn.createUserTable()
                         dbConn.createPhotoTable()
+                        dbConn.createAlbumTable()
+                        dbConn.createPhotoAlbumsTable()
                         dbConn.createIPAddressTable()
                         dbConn.insertUser(User())
                         createAnother = input("Create another user: y/n? ")
@@ -431,8 +465,6 @@ if __name__ == '__main__':
         #Start photo directory service
         fileHandler.importPhotos(dbConn)
                 
-       
-        
         connection = ServerConnection(VERSION, ENDIAN, port, host)
         if connection.prepareConnection() is False:
                 closeApp()

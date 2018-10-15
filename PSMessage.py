@@ -107,6 +107,8 @@ ClientToServerPhoto =   20      Name of photo
 
 EditedPhototoServer =   30      Original hash of photo
 
+CreateAlbum         =   40      Name of album
+
 DeletePhoto         =   50      hash of photo
 
 Error = 99

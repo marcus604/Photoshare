@@ -55,6 +55,14 @@ class dbConnection:
          self.executeSQL('CREATE TABLE `photoshare`.`ipaddresses` ( `Address` VARCHAR(16) NOT NULL , `FailedAttempts` INT(1) NOT NULL , PRIMARY KEY (`Address`(16)));')
          logger.info("IPAddress table created")
 
+    def createAlbumTable(self):
+        self.executeSQL('CREATE TABLE `photoshare`.`albums` ( `title` varchar(255) NOT NULL , `dateCreated` varchar(255) NOT NULL , `dateUpdated` varchar(255) DEFAULT NULL, `userCreated` tinyint(1) NOT NULL, `photos` varchar(255), PRIMARY KEY (`title`));')
+        logger.info("Albums table created")
+
+    def createPhotoAlbumsTable(self):
+        self.executeSQL('CREATE TABLE `photoshare`.`photoAlbums` ( `id` int(11) unsigned NOT NULL AUTO_INCREMENT, `photo_id` VARCHAR(255) NOT NULL, `album_id` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`), FOREIGN KEY (`photo_id`) REFERENCES `photoshare`.`photos`(`md5Hash`) ON DELETE CASCADE, FOREIGN KEY (`album_id`) REFERENCES `photoshare`.`albums`(`title`) ON DELETE CASCADE);')
+        logger.info("PhotoAlbums table created")
+
     #Could be compressed to single line
     def insertUser(self, user):
         userName = user.getUserName()
@@ -64,6 +72,24 @@ class dbConnection:
         sql = 'INSERT INTO `photoshare`.`users` (`UserName`, `Hash`, `Salt`, `DateCreated`) VALUES (\'{0}\', \'{1}\', \'{2}\', \'{3}\');'.format(userName, hash, salt, dateCreated)
         self.executeSQL(sql)
         logger.info("Successfully created user {}".format(userName))
+
+    def createAlbum(self, title, userCreated):
+        currentTime = time.time()
+        sql = "INSERT INTO `photoshare`.`albums` (`title`, `dateCreated`, `dateUpdated`, `userCreated`) VALUES (\'{}\', \'{}\', \'{}\', \'{}\');".format(title, currentTime, currentTime, userCreated)
+        result = self.executeSQLReturnRowCount(sql)
+        if result:
+            return True  
+        return False #Failed to create album
+
+    def addPhotoToAlbum(self, photo, album):
+        sql = "INSERT INTO `photoshare`.`photoAlbums` (`photo_id`, `album_id`) VALUES (\'{}\', \'{}\');".format(photo, album)
+        print(sql)
+        result = self.executeSQLReturnRowCount(sql)
+        if result:
+            return True  
+        return False #Failed to add photo
+
+    
 
     def insertPhoto(self, hash, path, exifValues, year, month, day, ptime):
         # Create a new record
