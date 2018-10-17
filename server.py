@@ -119,6 +119,7 @@ def createAlbum(dbConn, name):
         userCreated = int(userCreatedMsg.data)
         if dbConn.createAlbum(name, userCreated):
                 msg = msgFactory.generateMessage(40, 0) #Success
+                print("create success")
                 logger.info("Created album: {}".format(name))
         else:
                 msg = msgFactory.generateMessage(40, 10)   #Failure
@@ -127,13 +128,12 @@ def createAlbum(dbConn, name):
         addMsgToQueue(msg)
 
 def addPhotoToAlbum(dbConn, album):
-        print("adding to album {}".format(album))
         photoToAddMsg = connection.receiveMessage()
         photoToAddMsg.stripToken()
         photoHash = photoToAddMsg.data
-        print(photoHash)
         if dbConn.addPhotoToAlbum(photoHash, album):
                 msg = msgFactory.generateMessage(45, 0) #Success
+                print("succecss")
                 logger.info("Added photo to album {}".format(album))
         else:
                 msg = msgFactory.generateMessage(45, 10)   #Failure
@@ -158,7 +158,6 @@ def updatePhoto(dbConn, photoHash):
         fileSizeMsg = connection.receiveMessage()
         fileSizeMsg.stripToken()
         fileSize = int(fileSizeMsg.data)
-        print("new file size {}".format(fileSize))
         photoPath, photoName = dbConn.getPhotoNameandPath(photoHash)
         tmpPath = fileHandler.getTempFilePath(photoName)
         tmpFile = open(tmpPath, "wb")
@@ -284,9 +283,7 @@ def sync(connection, user, dbConn, compressionEnabled):
                 addMsgToQueue(numOfPhotosMsg) 
                 logger.info("No Photos to send")                        
  
-        #photosToRecieve = 
-
-        print("stop")
+        logger.info("Waiting for request...")
 
 
                       
@@ -302,20 +299,18 @@ def convert_to_bytes(no):
         result.append(no & 255)
     return result       
 
+# Monitor queue for new messages, send them to client as they arrive
 def handle_client_send(connection, q):
-        """ Monitor queue for new messages, send them to client as they arrive """
         while True:
                 msg = q.get()
                 if msg == None: break
                 try:
                         connection.sendMessage(msg)
-                        #print("sent message {}".format(random.randint(1,9)))
+                        #print("sent message {}".format(random.randint(1,9)))  Helpful to know when q is empty
                 except ConnectionError as e:
                         clientDisconnected(connection)
                         break
 
-""" def handleSessions():
-        #Monitor  """
 
 
 def verifyUser(data, dbConn):
@@ -340,9 +335,7 @@ def verifyUser(data, dbConn):
         return user
         
 
-def scrubSQL(toScrub):
-        #scrub text of any invalid characters to prevent SQL injection attacks
-        print(toScrub)
+
 
 
 def addMsgToQueue(msg):
@@ -353,7 +346,23 @@ def addMsgToQueue(msg):
 
 
 
-
+#For when connection should be closed immediatly
+def disconnectClient(connection):
+        clientSock = connection.getClientSocket()
+        if clientSock == "":
+                return
+        fd = clientSock.fileno()
+        with lock:
+                # Get send queue for this client
+                q = sendQueues.get(fd, None)
+        # If we find a queue then this disconnect has not yet
+        # been handled
+        if q:
+                del sendQueues[fd]
+                q.put(None)
+        connection.disconnectClient()
+        
+#Client disconnected for non nefarious reasons
 def clientDisconnected(connection):
         """ Ensure queue is cleaned up and socket closed when a client
         disconnects """
@@ -438,6 +447,7 @@ if __name__ == '__main__':
         try:
                 dbConn = dbConnection(settings)
                 dbConn.connect()
+                logger.info("Connected to DB")
                 fileHandler = FileHandler(settings.get('DIR', 'Library'), settings.get('DIR', 'Import'), settings.get('DIR', 'Temp'))
                 if settings.getboolean('MAIN', 'firstRun'):
                         fileHandler.createDirectories()
@@ -462,8 +472,10 @@ if __name__ == '__main__':
                 logger.error("Library folder is not empty")
                 closeApp()
         
-        #Start photo directory service
-        fileHandler.importPhotos(dbConn)
+        logger.info("Starting import background task")
+        importThread = threading.Thread(target=fileHandler.importPhotos, args=[settings], daemon=True)
+        importThread.start()
+        
                 
         connection = ServerConnection(VERSION, ENDIAN, port, host)
         if connection.prepareConnection() is False:
@@ -471,7 +483,8 @@ if __name__ == '__main__':
         
 
         while True:
-                photoshare.timerCheckpoint("Creating socket")
+                #photoshare.timerCheckpoint("Creating socket")
+                logger.info("Waiting for connection...")
                 connectionSuccess = connection.processNewConnection()
                 if isIPBanned(dbConn, connection.getClientAddress()):
                         logger.info("Banned IP: {}".format(connection.getClientAddress()))
@@ -503,90 +516,3 @@ if __name__ == '__main__':
                 
         
         
-        
-
-""" #Opens DB, creates a zipped CSV of contents
-#Need to split up sync to smaller peices to help if/when connection is interupted in initial sync
-#Need to see what compression level is being asked
-def initialSync(sock, sqlConnection):
-
-        filename = 'photosCSV.gz'
-        #filename = 'Testing/Files/1G'
-
-        #Is the database populated?
-        logger.info("Starting Initial Sync")
-
-        #Are we resuming syncing
-        #Has the database changed since we started the initial sync
-
-        #Generate CSV file of Photos table
-        try:
-                with sqlConnection.cursor() as cursor:
-                        sql = "SELECT * FROM photos"
-                        results = cursor.execute(sql)
-                        if cursor.rowcount == 0:        #Database is empty      
-                                logger.info("No Photos in Database")
-                        photoshare.timerCheckpoint("Retrieving {0} photos".format(results))     
-                        logger.debug("Syncing {} photos".format(results))
-                        with gzip.open('photosCSV.gz', 'wt') as fileIn:
-                                writer = csv.writer(fileIn)
-                                writer.writerow([x[0] for x in cursor.description])  # column headers                           
-                                writer.writerows(cursor._result.rows)
-                        photoshare.timerCheckpoint("Creating Zip of DB")
-        except pymysql.err.ProgrammingError as e:
-                logger.error('SQL Table doesnt exist')
-        except pymysql.err.DatabaseError as e:
-                logger.error('SQL Error')
-        finally:
-                cursor.close ()
-
-        #Check if file needs to be split up to send over network
-        if os.path.exists(filename):
-                length = os.path.getsize(filename)
-                sock.send(convert_to_bytes(length))
-        with open(filename, 'rb') as infile:
-                l = infile.read(BUFFER_SIZE)
-                count = 0
-                while l:
-                        try:
-                                count += 1
-                                if count % 32 == 0:
-                                        time = photoshare.timerCheckpoint("1 Mb")               
-                                        print ('{:.5}MB/s'.format(1 / time)) 
-                                sock.sendall(l)
-                        except (ConnectionError):
-                                clientDisconnected(connection)
-                                break
-                        l = infile.read(BUFFER_SIZE) 
-        
-
-        photoshare.timerCheckpoint("Transfering DB Table")
-        os.remove(filename)
-
-        #Collect files to sync
-        fileHandles = photoshare.getFileHandles("Library/")
-
-        #Assume for now that we want full quality sync
-        #Bundle 10 photos together
-        if fileHandles != False:
-                numOfPhotos = convert_to_bytes(len(fileHandles))
-                sock.send(numOfPhotos)
-                #count = 0
-                for file in fileHandles:
-                        
-                        length = os.path.getsize(file)
-                        sock.send(convert_to_bytes(length))
-                        with open(file, 'rb') as infile:
-                                l = infile.read(BUFFER_SIZE)
-                                count = 0
-                                while l:
-                                        try:
-                                                count += 1
-                                                if count % 32 == 0:
-                                                        time = photoshare.timerCheckpoint("1 Mb")               
-                                                        print ('{:.5}MB/s'.format(1 / time)) 
-                                                sock.sendall(l)
-                                        except (ConnectionError):
-                                                clientDisconnected(connection)
-                                                break
-                                        l = infile.read(BUFFER_SIZE) """

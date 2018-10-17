@@ -29,7 +29,7 @@ class ServerConnection:
     def prepareConnection(self):
         try:
             listenSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            listenSock.setsockopt(socket.SOL_SOCKET, socket.TCP_NODELAY, 1)
+            listenSock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             listenSock.bind((self.HOST, self.PORT))
             listenSock.listen(100)
 
@@ -42,7 +42,7 @@ class ServerConnection:
                         return False
       
         addr = listenSock.getsockname()
-        logger.info('Listening on {}'.format(addr))
+        #logger.info('Listening on {}'.format(addr))
         self.listenSock = listenSock
                         
     def processNewConnection(self):
@@ -57,6 +57,11 @@ class ServerConnection:
             return False
         self.clientSock = clientSock
         self.clientAddress = clientAddress
+
+    def forceClose(self):
+        self.clientSock.shutdown(socket.SHUT_RD)
+        self.clientSock.close()
+        logger.info('Disconnected client: {}'.format(self.clientAddress))
 
     def close(self):
         self.clientSock.close()
@@ -120,14 +125,10 @@ class ServerConnection:
         context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
         context.verify_mode = ssl.CERT_OPTIONAL
         context.load_cert_chain(certfile="server.crt", keyfile="server.key")
+        context.options |= ssl.OP_NO_TLSv1
+        context.options |= ssl.OP_NO_TLSv1_1
         #Useful when I want to see unecrypted on the wire traffic
         #Cant decrypt otherwise as it uses diffie helman and encrypts session data with a different key
         context.set_ciphers('RSA')		
         return context.wrap_socket(sock, server_side=True)
     
-
-    
-    #def fromString(self, rawMsg):
-        
-
-    #def receiveMessage(self):

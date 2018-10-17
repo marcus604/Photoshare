@@ -1,4 +1,4 @@
-
+from enum import Enum
 
 	#Endian			1 Byte; 0 = Little, 1 = Big
 	#Version		8 Bytes;	0-255
@@ -16,6 +16,33 @@ class PSMessage:
         self.data = data                    #String
         
 		
+    class Instruction(Enum):
+        SYNC = 1
+        
+        Handshake =             0       
+        Sync =                  1
+        NumOfPhotosSending =    2
+        SizeOfPhoto =           3
+        NameOfPhoto =           4
+        HashOfPhoto =           5
+        TimestampOfPhoto =      6
+
+        RequestPhoto =          10      
+
+        ClientToServerPhoto =   20      
+
+        EditedPhototoServer =   30      
+
+        CreateAlbum         =   40      
+
+        DeletePhoto         =   50      
+
+        Error = 99
+            # ErrorCodes
+            # Invalid Credentials = 0
+
+            # Unknown Error = 99
+
 
     def fromString(self, rawMsg):
         self.endian = rawMsg[0]

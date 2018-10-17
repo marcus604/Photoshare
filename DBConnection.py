@@ -30,7 +30,6 @@ class dbConnection:
     def connect(self):
         try:
             self.SQL_CONNECTION = pymysql.connect(host=self.HOST, user=self.USERNAME, password=self.PASSWORD, charset=self.CHARSET, cursorclass=pymysql.cursors.DictCursor)
-            logger.info("Connected to DB")
         except pymysql.err.OperationalError as e: 
             if (e.args[0] == 1045):		#Doesnt catch on ubuntu
                 logger.error("Rejected Credentials SQL")
@@ -71,7 +70,7 @@ class dbConnection:
         dateCreated = int(time.time())
         sql = 'INSERT INTO `photoshare`.`users` (`UserName`, `Hash`, `Salt`, `DateCreated`) VALUES (\'{0}\', \'{1}\', \'{2}\', \'{3}\');'.format(userName, hash, salt, dateCreated)
         self.executeSQL(sql)
-        logger.info("Successfully created user {}".format(userName))
+        logger.info("Created user {}".format(userName))
 
     def createAlbum(self, title, userCreated):
         currentTime = time.time()
@@ -83,7 +82,6 @@ class dbConnection:
 
     def addPhotoToAlbum(self, photo, album):
         sql = "INSERT INTO `photoshare`.`photoAlbums` (`photo_id`, `album_id`) VALUES (\'{}\', \'{}\');".format(photo, album)
-        print(sql)
         result = self.executeSQLReturnRowCount(sql)
         if result:
             return True  
@@ -98,21 +96,6 @@ class dbConnection:
             sql = "INSERT INTO `photoshare`.`photos` (`md5Hash`, `dir`, `dateadded`, `make`, `model`, `lensModel`, `flash`, `dateTime`, `ISO`, `aperture`, `focalLength`, `width`, `height`, `exposureTime`, `sharpness`) VALUES (\'{0}\', \'{1}\', \'{2}\', \'{3}\', \'{4}\', \'{5}\', \'{6}\', \'{7}\', \'{8}\', \'{9}\', \'{10}\', \'{11}\', \'{12}\', \'{13}\', \'{14}\');".format(hash, path, currentTime, exifValues[0], exifValues[1], exifValues[2], exifValues[3], fileDateTime, exifValues[5], exifValues[6], exifValues[7], exifValues[8], exifValues[9], exifValues[10], exifValues[11])
             self.executeSQL(sql)
 
-            # connection is not autocommit by default. So you must commit to save
-            # your changes.
-            #connection.commit()
-            #photosImported += 1
-            """ except pymysql.err.DataError:   #Data too long
-                importErrors += 1
-                pass
-            except pymysql.err.IntegrityError:  #Duplicate Primary Key
-                importErrors += 1
-                pass
-            except pymysql.err.ProgrammingError: #Table doesnt exist
-                importErrors += 1
-                pass """
-            #except BaseException:
-            #    pass
     
     def getRangeOfPhotoPaths(self, lastSync):
         currentTime = time.time()
@@ -219,7 +202,7 @@ class dbConnection:
             logger.error(e.args[1])
             raise e
 
-    #Need to scrub for sql injection    
+    #Uses execute to scrub sql   
     def executeSQL(self, sql):
         try:
             with self.SQL_CONNECTION.cursor() as cursor:

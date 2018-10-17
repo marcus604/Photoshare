@@ -5,6 +5,7 @@ import logging
 import hashlib
 import exifread
 from datetime import *
+from DBConnection import dbConnection
 import time
 import shutil
 import ntpath
@@ -128,38 +129,44 @@ class FileHandler:
 		thumbnail.save(thumbnailPath)
 
 	
-	def importPhotos(self, dbConn):
-		logger.info("Starting photo import")
-		#Logging Variables
-		photosImported = 0
-		duplicatesSkipped = 0
-		invalidFiles = 0
-
-		filesToImport = self.collectFilesToImport()
-		if not filesToImport:
-			logger.info("No photos to import")
-			return
-		
-		#Get existing hashes to check for duplicates
-		hashes = dbConn.getAllExistingHashes()
-
-		progressCount = 1
-		#Loop through all supported files
-		for currentPhotoPath in filesToImport:
-			print("Processing file {} of {}".format(progressCount, len(filesToImport)))
-			progressCount += 1
-			try:
-				hashes = self.importPhoto(dbConn, currentPhotoPath, None, hashes)
-				photosImported += 1
-			except ImportErrorDuplicate:
-				duplicatesSkipped +=1
-			except ImportErrorPhotoInvalid:
-				invalidFiles += 1
+	def importPhotos(self, settings):
+		while True:
+			dbConn = dbConnection(settings)
+			dbConn.connect()
+			#Logging Variables
+			photosImported = 0
+			duplicatesSkipped = 0
+			invalidFiles = 0
+			filesToImport = self.collectFilesToImport()
+			if not filesToImport:
+				time.sleep(10)
+				continue
 			
+			#Get existing hashes to check for duplicates
+			hashes = dbConn.getAllExistingHashes()
 
-		logger.info("Imported {} photos".format(photosImported))
-		logger.info("Skipped {} duplicates".format(duplicatesSkipped))
-		logger.info("Skipped {} invalid files".format(invalidFiles))
+			progressCount = 1
+			#Loop through all supported files
+			for currentPhotoPath in filesToImport:
+				#print("Processing file {} of {}".format(progressCount, len(filesToImport)))
+				progressCount += 1
+				try:
+					hashes = self.importPhoto(dbConn, currentPhotoPath, None, hashes)
+					photosImported += 1
+				except ImportErrorDuplicate:
+					duplicatesSkipped +=1
+				except ImportErrorPhotoInvalid:
+					invalidFiles += 1
+				
+
+			if photosImported != 0:
+				logger.info("Imported {} photos".format(photosImported))
+			if duplicatesSkipped != 0:
+				logger.info("Skipped {} duplicates".format(duplicatesSkipped))
+			if invalidFiles != 0:
+				logger.info("Skipped {} invalid files".format(invalidFiles))
+			
+			time.sleep(10)
 
 	def getTempFilePath(self, name):
 		return str(self.TEMP_DIR) + "/" + name
