@@ -23,22 +23,14 @@ import pdb
 import random
 from io import BytesIO
 
-ENDIAN = 'b'
-VERSION = 1
-ps = ''
-HOST = ''
-PORT = 1428
+
 sendQueues = {}
 lock = threading.Lock()
-userName = 'Marcus'
-passwd = 'hi'
 TOKEN_SIZE = 8
-SQL_USERNAME = 'root'
-SQL_PASSWORD = 'thisIsMySQLPassword'
-BUFFER_SIZE = 16384 #32768 
+BUFFER_SIZE = 32768 
 pr = cProfile.Profile()
 dbConn = ''
-msgFactory = PSMsgFactory(VERSION, ENDIAN)
+
 
 
 
@@ -66,7 +58,7 @@ def clientConnected(connection, dbConn):
                                 logger.info("Connection Error")
                                 clientDisconnected(connection)
                                 break
-                        if msg.instruction == 0:                #Handshake
+                        if msg.instruction == PSMessage.Instruction.HANDSHAKE:                #Handshake
                                 user = verifyUser(msg.data, dbConn)             ###################
                                 if not user:             #Failed Login           
                                         msg = msgFactory.generateError('0')
@@ -80,7 +72,7 @@ def clientConnected(connection, dbConn):
                                 loggedInUser = user
                                 token = secrets.token_hex(TOKEN_SIZE)
                                 dbConn.userSignedIn(loggedInUser, token)
-                                msg = msgFactory.generateMessage(0, token)
+                                msg = msgFactory.generateMessage(PSMessage.Instruction.HANDSHAKE.value, token)
                                 addMsgToQueue(msg)
                                 photoshare.timerCheckpoint("Authenticating user")
                                 continue
@@ -91,38 +83,38 @@ def clientConnected(connection, dbConn):
                                         clientDisconnected(connection)
                                 else:
                                         msg.stripToken()                #Dont need it now, can throw away token
-                
-                        if msg.instruction == 1:                #Sync
+                        
+                        if msg.instruction == PSMessage.Instruction.SYNC:                #Sync
                                 sync(connection, loggedInUser, dbConn, msg.data)
                                 dbConn.userSynced(loggedInUser)                                 
-                        if msg.instruction == 10:               #Client requesting specific image
+                        if msg.instruction == PSMessage.Instruction.PHOTO_REQUEST:               #Client requesting specific image
                                 retrievePhoto(dbConn, msg.data)
-                        if msg.instruction == 20:               #Incoming new photo
+                        if msg.instruction == PSMessage.Instruction.PHOTO_UPLOAD:               #Incoming new photo
                                 receivePhoto(dbConn, msg.data)
                                 dbConn.userSynced(loggedInUser) 
-                        if msg.instruction == 30:               #incoming edited photo
+                        if msg.instruction == PSMessage.Instruction.PHOTO_EDIT:               #incoming edited photo
                                 updatePhoto(dbConn, msg.data)
-                        if msg.instruction == 40:               #Create new album
+                        if msg.instruction == PSMessage.Instruction.CREATE_ALBUM:               #Create new album
                                 createAlbum(dbConn, msg.data)
-                        if msg.instruction == 45:               #Add photo to album
+                        if msg.instruction == PSMessage.Instruction.ADD_TO_ALBUM:               #Add photo to album
                                 addPhotoToAlbum(dbConn, msg.data)
-                        if msg.instruction == 50:               #Delete photo
+                        if msg.instruction == PSMessage.Instruction.PHOTO_DELETE:               #Delete photo
                                 deletePhoto(dbConn, msg.data)
                         
         except Exception as e:
-                print(e)
+                logger.info("Unknown Error: {}".format(e))
                 clientDisconnected(connection)
 
 def createAlbum(dbConn, name):
         userCreatedMsg = connection.receiveMessage()
         userCreatedMsg.stripToken()
         userCreated = int(userCreatedMsg.data)
-        if dbConn.createAlbum(name, userCreated):
-                msg = msgFactory.generateMessage(40, 0) #Success
+        if dbConn.insertAlbum(name, userCreated):
+                msg = msgFactory.generateMessage(PSMessage.Instruction.CREATE_ALBUM.value, 0) #Success
                 print("create success")
                 logger.info("Created album: {}".format(name))
         else:
-                msg = msgFactory.generateMessage(40, 10)   #Failure
+                msg = msgFactory.generateMessage(PSMessage.Instruction.CREATE_ALBUM.value, 10)   #Failure
                 logger.error("Could not create album: {}".format(name))
 
         addMsgToQueue(msg)
@@ -131,12 +123,12 @@ def addPhotoToAlbum(dbConn, album):
         photoToAddMsg = connection.receiveMessage()
         photoToAddMsg.stripToken()
         photoHash = photoToAddMsg.data
-        if dbConn.addPhotoToAlbum(photoHash, album):
-                msg = msgFactory.generateMessage(45, 0) #Success
+        if dbConn.insertPhotoIntoAlbum(photoHash, album):
+                msg = msgFactory.generateMessage(PSMessage.Instruction.ADD_TO_ALBUM.value, 0) #Success
                 print("succecss")
                 logger.info("Added photo to album {}".format(album))
         else:
-                msg = msgFactory.generateMessage(45, 10)   #Failure
+                msg = msgFactory.generateMessage(PSMessage.Instruction.ADD_TO_ALBUM.value, 10)   #Failure
                 logger.error("Could not add to album: {}".format(album))
 
         addMsgToQueue(msg)
@@ -145,10 +137,10 @@ def deletePhoto(dbConn, hash):
         localPath = dbConn.deletePhoto(hash)
 
         if localPath and fileHandler.deletePhoto(localPath):
-                msg = msgFactory.generateMessage(50, 0) #Success
+                msg = msgFactory.generateMessage(PSMessage.Instruction.PHOTO_DELETE.value, 0) #Success
                 logger.info("Deleted Photo at {}".format(localPath))
         else:
-                msg = msgFactory.generateMessage(50, 10)   #Failure
+                msg = msgFactory.generateMessage(PSMessage.Instruction.PHOTO_DELETE.value, 10)   #Failure
                 logger.error("Could not delete photo: {}".format(hash))
 
         addMsgToQueue(msg)
@@ -165,12 +157,12 @@ def updatePhoto(dbConn, photoHash):
                 connection.receivePhoto(tmpFile, fileSize)
                 tmpFile.close()
                 fileHandler.updatePhoto(tmpPath, photoPath)
-                msg = msgFactory.generateMessage(30, 0)
+                msg = msgFactory.generateMessage(PSMessage.Instruction.PHOTO_EDIT.value, 0)
                 logger.info("Updated photo from client")
         except ImportErrorPhotoInvalid:
-                msg = msgFactory.generateMessage(30, 1)
+                msg = msgFactory.generateMessage(PSMessage.Instruction.PHOTO_EDIT.value, 1)
         except:
-                msg = msgFactory.generateMessage(30, 1)
+                msg = msgFactory.generateMessage(PSMessage.Instruction.PHOTO_EDIT.value, 1)
         os.remove(tmpPath)
         addMsgToQueue(msg)
         
@@ -190,13 +182,13 @@ def receivePhoto(dbConn, photoName):
         tmpFile.close()
         try:            #Import photo, true is added to tell method to generate all previous hashes
                 fileHandler.importPhoto(dbConn, tmpPath, timeStamp, True)
-                msg = msgFactory.generateMessage(20, 0)
+                msg = msgFactory.generateMessage(PSMessage.Instruction.PHOTO_UPLOAD.value, 0)
                 logger.info("Imported Photo from client")
         except ImportErrorDuplicate:
-                msg = msgFactory.generateMessage(20, 1)
+                msg = msgFactory.generateMessage(PSMessage.Instruction.PHOTO_UPLOAD.value, 1)
                 logger.info("Rejected duplicate photo from client")
         except ImportErrorPhotoInvalid:
-                msg = msgFactory.generateMessage(20, 2)
+                msg = msgFactory.generateMessage(PSMessage.Instruction.PHOTO_UPLOAD.value, 2)
                 logger.info("Rejected invalid photo from client")
         os.remove(tmpPath)
         addMsgToQueue(msg)
@@ -267,10 +259,6 @@ def sync(connection, user, dbConn, compressionEnabled):
                                 while l:
                                         try:
                                                 count += 1
-                                                #if count % 32 == 0:
-                                                #        time = photoshare.timerCheckpoint("1 Mb")               
-                                                #        print ('{:.5}MB/s'.format(1 / time)) 
-                                                #sock.sendall(l)
                                                 addMsgToQueue(l)
                                         except (ConnectionError):
                                                 clientDisconnected(connection)
@@ -291,16 +279,10 @@ def sync(connection, user, dbConn, compressionEnabled):
 
 
 
-def convert_to_bytes(no):
-    result = bytearray()
-    result.append(no & 255)
-    for i in range(3):
-        no = no >> 8
-        result.append(no & 255)
-    return result       
+
 
 # Monitor queue for new messages, send them to client as they arrive
-def handle_client_send(connection, q):
+def handleClientSend(connection, q):
         while True:
                 msg = q.get()
                 if msg == None: break
@@ -415,8 +397,7 @@ def isIPBanned(dbConn, ip):
 
 if __name__ == '__main__':
         
-        
-
+        print(PSMessage.Instruction.SYNC.value)
         photoshare.startTimer()
         logger.info('Starting PhotoShare')
 
@@ -434,11 +415,7 @@ if __name__ == '__main__':
         ENDIAN = settings.get('MAIN', 'endian')
         port = settings.get('Network', 'port')
         host = settings.get('Network', 'host')
-
-        #FOR DEBUGGING ONLY
-        #port = int(port) + 1
-        #increasePortNumber(port, settings)
-
+        BUFFER_SIZE = int(settings.get('Network', 'buffersize'))
         
         
 
@@ -478,10 +455,11 @@ if __name__ == '__main__':
         
                 
         connection = ServerConnection(VERSION, ENDIAN, port, host)
+        connection.BUFFER_SIZE = BUFFER_SIZE
         if connection.prepareConnection() is False:
                 closeApp()
         
-
+        msgFactory = PSMsgFactory(VERSION, ENDIAN)
         while True:
                 #photoshare.timerCheckpoint("Creating socket")
                 logger.info("Waiting for connection...")
@@ -501,7 +479,7 @@ if __name__ == '__main__':
                 with lock:
                         sendQueues[connection.getClientSocket().fileno()] = q
                 recv_thread = threading.Thread(target=clientConnected,args=[connection, dbConn],daemon=True)
-                send_thread = threading.Thread(target=handle_client_send,args=[connection, q],daemon=True)
+                send_thread = threading.Thread(target=handleClientSend,args=[connection, q],daemon=True)
                 recv_thread.start()
                 send_thread.start()
                 print('Connection from {}'.format(connection.getClientAddress()))

@@ -15,7 +15,7 @@ class ServerConnection:
     listenSock = ''
     clientSock = ''
     clientAddress = ''
-    BUFFER_SIZE = 16384
+    BUFFER_SIZE = ''
    
 
     def __init__(self, version, endian, port, host):
@@ -64,8 +64,13 @@ class ServerConnection:
         logger.info('Disconnected client: {}'.format(self.clientAddress))
 
     def close(self):
-        self.clientSock.close()
+        try:
+            self.clientSock.close()
+        except AttributeError as e:
+            logger.info('Client {} already disconnected'.format(self.clientAddress))
+            return
         logger.info('Client {} disconnected'.format(self.clientAddress))
+        
 
     def receivePhoto(self, file, size):
         currentSize = 0

@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import IntEnum
 
 	#Endian			1 Byte; 0 = Little, 1 = Big
 	#Version		8 Bytes;	0-255
@@ -16,32 +16,22 @@ class PSMessage:
         self.data = data                    #String
         
 		
-    class Instruction(Enum):
-        SYNC = 1
+    class Instruction(IntEnum): # Data Field all include token except for handshake
+        HANDSHAKE = 0           # username:password
+        SYNC = 1                # NULL
+        INCOMING_PHOTOS = 2     # Num of photos being sent
+        PHOTO_SIZE = 3          # Size of incoming photo
+        PHOTO_NAME = 4          # Name of incoming photo
+        PHOTO_HASH = 5          # Hash of incoming photo
+        PHOTO_TIME = 6          # Timestamp of incoming photo
+        PHOTO_REQUEST = 10      # Hash of photo requested
+        PHOTO_UPLOAD = 20       # Name of uploaded photo     #Avoid hashing on client
+        PHOTO_EDIT = 30         # Original hash of edited photo
+        CREATE_ALBUM = 40       # Name of album
+        ADD_TO_ALBUM = 45       # Album being added to
+        PHOTO_DELETE = 50       # Hash of photo to delete
+        ERROR = 99              # 
         
-        Handshake =             0       
-        Sync =                  1
-        NumOfPhotosSending =    2
-        SizeOfPhoto =           3
-        NameOfPhoto =           4
-        HashOfPhoto =           5
-        TimestampOfPhoto =      6
-
-        RequestPhoto =          10      
-
-        ClientToServerPhoto =   20      
-
-        EditedPhototoServer =   30      
-
-        CreateAlbum         =   40      
-
-        DeletePhoto         =   50      
-
-        Error = 99
-            # ErrorCodes
-            # Invalid Credentials = 0
-
-            # Unknown Error = 99
 
 
     def fromString(self, rawMsg):

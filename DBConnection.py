@@ -72,7 +72,7 @@ class dbConnection:
         self.executeSQL(sql)
         logger.info("Created user {}".format(userName))
 
-    def createAlbum(self, title, userCreated):
+    def insertAlbum(self, title, userCreated):
         currentTime = time.time()
         sql = "INSERT INTO `photoshare`.`albums` (`title`, `dateCreated`, `dateUpdated`, `userCreated`) VALUES (\'{}\', \'{}\', \'{}\', \'{}\');".format(title, currentTime, currentTime, userCreated)
         result = self.executeSQLReturnRowCount(sql)
@@ -80,7 +80,7 @@ class dbConnection:
             return True  
         return False #Failed to create album
 
-    def addPhotoToAlbum(self, photo, album):
+    def insertPhotoIntoAlbum(self, photo, album):
         sql = "INSERT INTO `photoshare`.`photoAlbums` (`photo_id`, `album_id`) VALUES (\'{}\', \'{}\');".format(photo, album)
         result = self.executeSQLReturnRowCount(sql)
         if result:
