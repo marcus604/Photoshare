@@ -1,0 +1,18 @@
+
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="row">
+{% for album in albums %}
+<div>            
+            <a href="{{url_for('getAlbum', title=album.get('title'))}}">
+                <img class="img-thumbnail" src=" {{url_for('getImageThumbnail', filename=album.get('coverPhoto'))}}">
+                <div class="caption">
+                        <p>{{ album.get('title') }}</p>
+                </div>
+            </a>
+</div>   
+{% endfor %}
+</div>
+{% endblock content %}

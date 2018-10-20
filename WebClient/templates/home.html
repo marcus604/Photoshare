@@ -1,0 +1,23 @@
+
+{% extends "layout.html" %}
+
+{% block content %}
+
+
+
+<div class="row">
+
+{% for path in imagePaths %}
+<div>            
+            <a href="{{url_for('getImageMaster', filename=path)}}">
+                <img class="img-thumbnail" src=" {{url_for('getImageThumbnail', filename=path)}}">
+            </a>
+</div>   
+{% endfor %}
+</div>
+{% endblock content %}
+
+
+
+
+   

@@ -418,6 +418,7 @@ if __name__ == '__main__':
         BUFFER_SIZE = int(settings.get('Network', 'buffersize'))
         
         
+        #UBUNTU FAILS HERE
 
         #Connect to DB host with provided username and password
         #Create database and tables if first run of app

@@ -1,0 +1,12 @@
+
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+<a href="{{ url_for('addDevice') }}" class="btn btn-primary" role="button">Add device</a>
+
+<a href="{{ url_for('addDevice') }}" class="btn btn-danger" role="button">Delete All Data</a>
+
+</div>
+{% endblock content %}
