@@ -59,4 +59,4 @@ To Do
 *.profile
 *.csr
 *.swo
-
+*.env
