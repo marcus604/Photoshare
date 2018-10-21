@@ -397,8 +397,8 @@ def isIPBanned(dbConn, ip):
 
 if __name__ == '__main__':
         
-        print(PSMessage.Instruction.SYNC.value)
-        photoshare.startTimer()
+        
+       
         logger.info('Starting PhotoShare')
 
         #Read Settings .ini file

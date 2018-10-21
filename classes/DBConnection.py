@@ -2,11 +2,14 @@ import pymysql
 import configparser
 import logging
 from argon2 import PasswordHasher
-from User import User
+from classes.User import User
+from utils.log import getConsoleHandler, getFileHandler, getLogger
 import time
 
 logging.basicConfig(filename='photoshare.log',level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+psLogger = getLogger(__name__)
 
 class dbConnection:
 
