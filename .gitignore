@@ -39,24 +39,11 @@ Thumbs.db
 # Custom #
 ##########
 
-/Import/
-/Library/
 /__pycache__/
-/Certs/
+/certs/
+/venv/
+*.ini
 /.*/
-/bin/
 /include/
 /lib/
-/lib64/
-/share/
-/Testing/
-/dailyNotes.txt
-dailyNotes.txt
-*.key
-*.crt
-To Do
-*.csv
-*.profile
-*.csr
-*.swo
-*.env
+
