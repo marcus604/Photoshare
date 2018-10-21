@@ -1,7 +1,7 @@
 from flask import Flask, render_template, url_for, flash, redirect, send_from_directory
 from forms import AddDeviceForm
 import os
-from DBConnection import dbConnection
+from Classes.DBConnection import dbConnection
 import configparser
 from argon2 import PasswordHasher
 import argon2
