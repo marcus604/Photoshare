@@ -5,7 +5,8 @@ import logging
 import hashlib
 import exifread
 from datetime import *
-from DBConnection import dbConnection
+from classes.DBConnection import dbConnection
+from utils.log import getConsoleHandler, getFileHandler, getLogger
 import time
 import shutil
 import ntpath
@@ -13,8 +14,8 @@ import fnmatch
 from PIL import Image
 from pathlib import Path
 
-logging.basicConfig(filename='photoshare.log',level=logging.INFO)
-logger = logging.getLogger(__name__)
+psLogger = getLogger(__name__, "logs/photoshare.log")
+psLogger.debug("Loading Server class")
 logging.getLogger('PIL.Image').setLevel(logging.WARNING)
 logging.getLogger('exifread').setLevel(logging.WARNING)
 
@@ -50,15 +51,15 @@ class FileHandler:
 
 	#Very likely user could already have folders created
 	#Library folder should be empty to start
-	def createDirectories(self):
-		if not os.path.exists(self.LIBRARY_DIR):
-			os.makedirs(self.LIBRARY_DIR)
-		if os.listdir(self.LIBRARY_DIR):
-			raise LibraryPathNotEmptyError
-		if not os.path.exists(self.IMPORT_DIR):
-			os.makedirs(self.IMPORT_DIR)
-		if not os.path.exists(self.TEMP_DIR):
-			os.makedirs(self.TEMP_DIR)
+	#def createDirectories(self):
+		#if not os.path.exists(self.LIBRARY_DIR):
+		#	os.makedirs(self.LIBRARY_DIR)
+		#if os.listdir(self.LIBRARY_DIR):
+		#	raise LibraryPathNotEmptyError
+		#if not os.path.exists(self.IMPORT_DIR):
+		#	os.makedirs(self.IMPORT_DIR)
+		#if not os.path.exists(self.TEMP_DIR):
+		#	os.makedirs(self.TEMP_DIR)
 
 
 	def importPhoto(self, dbConn, photoPath, timeStamp, hashes):
@@ -160,13 +161,25 @@ class FileHandler:
 				
 
 			if photosImported != 0:
-				logger.info("Imported {} photos".format(photosImported))
+				psLogger.info("Imported {} photos".format(photosImported))
 			if duplicatesSkipped != 0:
-				logger.info("Skipped {} duplicates".format(duplicatesSkipped))
+				psLogger.debug("Skipped {} duplicates".format(duplicatesSkipped))
 			if invalidFiles != 0:
-				logger.info("Skipped {} invalid files".format(invalidFiles))
+				psLogger.info("Skipped {} invalid files".format(invalidFiles))
 			
 			time.sleep(10)
+
+	def resetLibrary(self):
+		foldersToDelete = [self.TEMP_DIR, self.LIBRARY_DIR, self.IMPORT_DIR]
+		for folder in foldersToDelete:
+			for the_file in os.listdir(folder):
+				file_path = os.path.join(folder, the_file)
+				try:
+					if os.path.isfile(file_path):
+						os.unlink(file_path)
+					elif os.path.isdir(file_path): shutil.rmtree(file_path)
+				except Exception as e:
+					print(e)
 
 	def getTempFilePath(self, name):
 		return str(self.TEMP_DIR) + "/" + name

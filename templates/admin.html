@@ -2,11 +2,37 @@
 {% extends "layout.html" %}
 
 {% block content %}
+<div class="col-lg-8">
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}  
+</div>
 
-<div class="row justify-content-center">
+<div class="row justify-content-center" style="padding-bottom:5px;">
 <a href="{{ url_for('addDevice') }}" class="btn btn-primary" role="button">Add device</a>
+</div>
+<div class="row justify-content-center" style="padding-bottom:5px;">
+    <a href="{{ url_for('startServer') }}" class="btn btn-success" role="button">Start Server</a>
+</div>
+<div class="row justify-content-center" style="padding-bottom:5px;">
+        <a href="{{ url_for('stopServer') }}" class="btn btn-warning" role="button">Stop Server</a>
+</div>
+<div class="row justify-content-center" style="padding-bottom:5px;">
+        <a href="{{ url_for('restartServer') }}" class="btn btn-info" role="button">Restart Server</a>
+</div>
+<div class="row justify-content-center" style="padding-bottom:5px;">
+        <a href="{{ url_for('resetServer') }}" class="btn btn-danger" role="button">Reset to Factory Settings</a>
+</div>
 
-<a href="{{ url_for('addDevice') }}" class="btn btn-danger" role="button">Delete All Data</a>
+
+
+
 
 </div>
 {% endblock content %}

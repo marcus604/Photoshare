@@ -23,6 +23,9 @@ class User:
             self.lastSignedIn = lastSignedIn
             self.lastSync = lastSync
 
+
+
+
     def generateUserName(self):
         userNameValid = False
         while not userNameValid:
@@ -36,6 +39,8 @@ class User:
                 else:
                     print("Username cannot contain the character ':'")
         return userName
+    
+    
 
     def generatePassword(self):
         ph = PasswordHasher()
@@ -81,5 +86,12 @@ class User:
     
     def getCompressionLevel(self):
         return self.compressionLevel
+
+    @staticmethod
+    def generateUserPassword(password):
+        ph = PasswordHasher()
+        salt = secrets.token_hex(32)
+        hash = ph.hash(password + salt)
+        return salt, hash
 
     

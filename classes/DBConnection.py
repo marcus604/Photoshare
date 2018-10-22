@@ -6,10 +6,9 @@ from classes.User import User
 from utils.log import getConsoleHandler, getFileHandler, getLogger
 import time
 
-logging.basicConfig(filename='photoshare.log',level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-psLogger = getLogger(__name__)
+psLogger = getLogger(__name__, "logs/photoshare.log")
+psLogger.debug("Loading DBConnection class")
 
 class dbConnection:
 
@@ -35,35 +34,46 @@ class dbConnection:
             self.SQL_CONNECTION = pymysql.connect(host=self.HOST, user=self.USERNAME, password=self.PASSWORD, charset=self.CHARSET, cursorclass=pymysql.cursors.DictCursor)
         except pymysql.err.OperationalError as e: 
             if (e.args[0] == 1045):		#Doesnt catch on ubuntu
-                logger.error("Rejected Credentials SQL")
+                print("rejecte credentials")
+                psLogger.error("Rejected Credentials SQL")
                 raise e
             elif (e.args[0] == 2003):
-                logger.error("Rejected SQL Host")
+                psLogger.error("Rejected SQL Host")
+                print("rejected host")
                 raise e
+            else:
+                print("error connected: {}".format(e))
 
     def createDatabase(self):
         self.executeSQL('CREATE DATABASE photoshare COLLATE utf8_general_ci;')
-        logger.info("Database created")
+        psLogger.info("Database created")
 
     def createUserTable(self):
         self.executeSQL('CREATE TABLE `photoshare`.`users` ( `UserName` VARCHAR(255) NOT NULL , `Hash` VARCHAR(255) NOT NULL , `Salt` VARCHAR(255) NOT NULL , `DateCreated` INT(11) NOT NULL , `LastSignedIn` INT(11) NULL , `LastSync` INT(11) NULL , `Token` VARCHAR(16) NULL , `CompressionLevel` INT(1) , PRIMARY KEY (`UserName`(255)));')
-        logger.info("User table created")
+        psLogger.info("User table created")
 
     def createPhotoTable(self):
         self.executeSQL('CREATE TABLE `photoshare`.`photos` ( `md5Hash` VARCHAR(255) NOT NULL , `Dir` VARCHAR(255) NOT NULL , `DateAdded` VARCHAR(255) NOT NULL , `Make` VARCHAR(255) , `Model` VARCHAR(255) , `LensModel` VARCHAR(255) , `Flash` VARCHAR(255) , `DateTime` VARCHAR(255) , `ISO` VARCHAR(255) , `Aperture` VARCHAR(255) , `FocalLength` VARCHAR(255) , `Width` VARCHAR(255) , `Height` VARCHAR(255) , `ExposureTime` VARCHAR(255) , `Sharpness` VARCHAR(255) , PRIMARY KEY (`md5Hash`(255)));')
-        logger.info("Photo table created")
+        psLogger.info("Photo table created")
 
     def createIPAddressTable(self):
          self.executeSQL('CREATE TABLE `photoshare`.`ipaddresses` ( `Address` VARCHAR(16) NOT NULL , `FailedAttempts` INT(1) NOT NULL , PRIMARY KEY (`Address`(16)));')
-         logger.info("IPAddress table created")
+         psLogger.info("IPAddress table created")
 
     def createAlbumTable(self):
         self.executeSQL('CREATE TABLE `photoshare`.`albums` ( `title` varchar(255) NOT NULL , `dateCreated` varchar(255) NOT NULL , `dateUpdated` varchar(255) DEFAULT NULL, `userCreated` tinyint(1) NOT NULL, `photos` varchar(255), `coverPhoto` varchar(255), PRIMARY KEY (`title`));')
-        logger.info("Albums table created")
+        psLogger.info("Albums table created")
 
     def createPhotoAlbumsTable(self):
         self.executeSQL('CREATE TABLE `photoshare`.`photoAlbums` ( `id` int(11) unsigned NOT NULL AUTO_INCREMENT, `photo_id` VARCHAR(255) NOT NULL, `album_id` VARCHAR(255) NOT NULL, PRIMARY KEY (`id`), FOREIGN KEY (`photo_id`) REFERENCES `photoshare`.`photos`(`md5Hash`) ON DELETE CASCADE, FOREIGN KEY (`album_id`) REFERENCES `photoshare`.`albums`(`title`) ON DELETE CASCADE);')
-        logger.info("PhotoAlbums table created")
+        psLogger.info("PhotoAlbums table created")
+
+    def resetTables(self):
+        self.executeSQL('DELETE FROM `photoshare`.`users`;')
+        self.executeSQL('DELETE FROM `photoshare`.`photos`;')
+        self.executeSQL('DELETE FROM `photoshare`.`ipaddresses`;')
+        self.executeSQL('DELETE FROM `photoshare`.`albums`;')
+        self.executeSQL('DELETE FROM `photoshare`.`photoAlbums`;')
 
     #Could be compressed to single line
     def insertUser(self, user):
@@ -73,7 +83,7 @@ class dbConnection:
         dateCreated = int(time.time())
         sql = 'INSERT INTO `photoshare`.`users` (`UserName`, `Hash`, `Salt`, `DateCreated`) VALUES (\'{0}\', \'{1}\', \'{2}\', \'{3}\');'.format(userName, hash, salt, dateCreated)
         self.executeSQL(sql)
-        logger.info("Created user {}".format(userName))
+        psLogger.info("Created user {}".format(userName))
 
     def insertAlbum(self, title, userCreated):
         currentTime = time.time()
@@ -113,7 +123,7 @@ class dbConnection:
         for album in albums:
             sql = "SELECT * FROM `photoshare`.`photoAlbums` HAVING `album_id` = '{}' LIMIT 1".format(album.get('title'))
             firstPhoto = self.executeSQL(sql)
-            if firstPhoto[0]:
+            if firstPhoto:
                 covers.append(self.getPhotoPath(firstPhoto[0].get('photo_id')))   
         return covers
         
@@ -226,13 +236,13 @@ class dbConnection:
                 if result:
                     return result
         except pymysql.err.ProgrammingError as e:
-            logger.error(e.args[1])
+            psLogger.error(e.args[1])
             raise e
         except pymysql.err.InternalError as e:
-            logger.error(e.args[1])
+            psLogger.error(e.args[1])
             raise e
         except pymysql.err.Error as e:
-            logger.error(e.args[1])
+            psLogger.error(e.args[1])
             raise e
 
     #Uses execute to scrub sql   
@@ -246,13 +256,13 @@ class dbConnection:
                 if result:
                     return result
         except pymysql.err.ProgrammingError as e:
-            logger.error(e.args[1])
+            psLogger.error(e.args[1])
             raise e
         except pymysql.err.InternalError as e:
-            logger.error(e.args[1])
+            psLogger.error(e.args[1])
             raise e
         except pymysql.err.Error as e:
-            logger.error(e.args[1])
+            psLogger.error(e.args[1])
             raise e
 
 
