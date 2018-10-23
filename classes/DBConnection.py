@@ -108,6 +108,15 @@ class dbConnection:
             fileDateTime = "{}:{}:{} {}".format(year, month, day, ptime)
             sql = "INSERT INTO `photoshare`.`photos` (`md5Hash`, `dir`, `dateadded`, `make`, `model`, `lensModel`, `flash`, `dateTime`, `ISO`, `aperture`, `focalLength`, `width`, `height`, `exposureTime`, `sharpness`) VALUES (\'{0}\', \'{1}\', \'{2}\', \'{3}\', \'{4}\', \'{5}\', \'{6}\', \'{7}\', \'{8}\', \'{9}\', \'{10}\', \'{11}\', \'{12}\', \'{13}\', \'{14}\');".format(hash, path, currentTime, exifValues[0], exifValues[1], exifValues[2], exifValues[3], fileDateTime, exifValues[5], exifValues[6], exifValues[7], exifValues[8], exifValues[9], exifValues[10], exifValues[11])
             self.executeSQL(sql)
+    
+    def getAllPhotosInAlbum(self, title):
+        sql = "SELECT `Dir` from `photoshare`.`photoAlbums` INNER JOIN `photoshare`.`photos` on `photoshare`.`photoAlbums`.`photo_id` = `photoshare`.`photos`.`md5hash` where `album_id` = '{}'".format(title)
+        results = self.executeSQL(sql)
+        paths = []
+        if results:
+            for result in results:
+                paths.append(result.get('Dir'))
+        return paths
 
     def getAllPhotoPaths(self):
         sql = "SELECT `Dir` FROM `photoshare`.`photos` ORDER BY `DateTime`"

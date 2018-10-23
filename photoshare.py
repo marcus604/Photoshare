@@ -159,7 +159,8 @@ def getImageMaster(filename):
 
 @app.route("/albums/<title>")
 def getAlbum(title):
-    return render_template('admin.html', title="Admin")
+    imagePaths = dbConnection.getAllPhotosInAlbum(title)  #Get all photos
+    return render_template('album.html', title=title, imagePaths=imagePaths)
 
 @app.route("/albums")
 def albums():
