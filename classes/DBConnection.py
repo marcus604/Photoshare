@@ -194,7 +194,7 @@ class dbConnection:
         return User(userName, result[0].get('Hash'), result[0].get('Salt'), result[0].get('LastSignedIn'), result[0].get('LastSync'))
 
     def getIPFailedAttempts(self, ip):
-        sql = "SELECT `failedAttempts` FROM `photoshare`.`IPAddresses` WHERE `address` = '{}'".format(ip)
+        sql = "SELECT `failedAttempts` FROM `photoshare`.`ipaddresses` WHERE `address` = '{}'".format(ip)
         result = self.executeSQL(sql)
         if result is None:
             return result

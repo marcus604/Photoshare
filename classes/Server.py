@@ -103,20 +103,20 @@ class Server:
                         dbConn.connect()
                         psLogger.info("Connected to DB")
                         self.fileHandler = FileHandler(self.settings.get('DIR', 'photos'), self.settings.get('DIR', 'import'), self.settings.get('DIR', 'tmp'))
-                        if self.settings.getboolean('MAIN', 'firstRun'):
-                                #fileHandler.createDirectories()
-                                dbConn.createDatabase()
-                                dbConn.createUserTable()
-                                dbConn.createPhotoTable()
-                                dbConn.createAlbumTable()
-                                dbConn.createPhotoAlbumsTable()
-                                dbConn.createIPAddressTable()
-                                dbConn.insertUser(User())
-                                createAnother = input("Create another user: y/n? ")
-                                while createAnother is "y":
-                                        dbConn.insertUser(User())
-                                        createAnother = input("Create another user: y/n?")
-                                self.finishFirstRun(self.settings)
+                        # if self.settings.getboolean('MAIN', 'firstRun'):
+                        #         #fileHandler.createDirectories()
+                        #         dbConn.createDatabase()
+                        #         dbConn.createUserTable()
+                        #         dbConn.createPhotoTable()
+                        #         dbConn.createAlbumTable()
+                        #         dbConn.createPhotoAlbumsTable()
+                        #         dbConn.createIPAddressTable()
+                        #         dbConn.insertUser(User())
+                        #         createAnother = input("Create another user: y/n? ")
+                        #         while createAnother is "y":
+                        #                 dbConn.insertUser(User())
+                        #                 createAnother = input("Create another user: y/n?")
+                        #         self.finishFirstRun(self.settings)
                 except configparser.Error as e:
                         psLogger.error("Settings malformed: " + e.message)
                         self.stop()
@@ -146,6 +146,7 @@ class Server:
                 while True:
                         #photoshare.timerCheckpoint("Creating socket")
                         psLogger.info("Waiting for connection...")
+                        
                         connectionSuccess = self.connection.processNewConnection()
                         if self.isIPBanned(dbConn, self.connection.getClientAddress()):
                                 psLogger.info("Banned IP: {}".format(self.connection.getClientAddress()))

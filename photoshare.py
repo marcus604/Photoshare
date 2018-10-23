@@ -62,6 +62,18 @@ dbConnection = getDBConnection(settings)
 if dbConnection is False:
     psLogger.error("Could not connect to database")
     #Should stop and quit
+if settings.getboolean('MAIN', 'firstRun'):
+    dbConnection.createUserTable()
+    dbConnection.createPhotoTable()
+    dbConnection.createAlbumTable()
+    dbConnection.createPhotoAlbumsTable()
+    dbConnection.createIPAddressTable()
+    settingsFile = "settings.ini"
+    settingsFP = open(settingsFile, "w")
+    settings.set('MAIN', 'firstRun', 'False')
+    settings.write(settingsFP)
+    settingsFP.close()
+
 psLogger.debug("Connected to database")
 
 #Instantiate server | Allows control from flask of server object (ie, starting, stopping, restarting)
