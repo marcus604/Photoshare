@@ -8,7 +8,7 @@
 <div class="row">
 
 {% for path in imagePaths %}
-<div>            
+<div class="col-sm-4">            
             <a href="{{url_for('getImageMaster', filename=path)}}">
                 <img class="img-thumbnail" src=" {{url_for('getImageThumbnail', filename=path)}}">
             </a>
