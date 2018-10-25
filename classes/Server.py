@@ -347,10 +347,13 @@ class Server:
 
 
         def sync(self, connection, user, dbConn, compressionEnabled):
-                lastSync = dbConn.getLastSync(user)
-                if lastSync is None:            #First sync, sets as time, jan 1 2017
-                        lastSync = 1483228800 
-                photosToSend = dbConn.getRangeOfPhotoPaths(lastSync)
+                lastSyncedPhotoHashMsg = self.connection.receiveMessage()
+                lastSyncedPhotoHashMsg.stripToken()
+                lastSyncedPhotoHash = lastSyncedPhotoHashMsg.data
+                #lastSync = dbConn.getLastSync(user)
+                #if lastSync is None:            #First sync, sets as time, jan 1 2017
+                #        lastSync = 1483228800 
+                photosToSend = dbConn.getRangeOfPhotoPaths(lastSyncedPhotoHash)
                 if photosToSend:
                         numOfPhotos = len(photosToSend)
                         numOfPhotosMsg = self.msgFactory.generateMessage(2, numOfPhotos)

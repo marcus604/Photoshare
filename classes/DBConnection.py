@@ -155,9 +155,15 @@ class dbConnection:
         return PSAlbum(title, result[0].get('dateCreated'), result[0].get('dateUpdated'), result[0].get('userCreated'))
 
 
-    def getRangeOfPhotoPaths(self, lastSync):
-        currentTime = time.time()
-        sql = "SELECT `Dir` FROM `photoshare`.`photos` WHERE `DateAdded` BETWEEN '{}' AND '{}'".format(lastSync, currentTime)
+    def getRangeOfPhotoPaths(self, lastSyncedPhotoHash):
+        if lastSyncedPhotoHash == "0": #Client has no photos
+            sql = "SELECT `Dir` FROM `photoshare`.`photos` ORDER BY `DateAdded`"
+        else:
+            lastSyncTime = float(self.getPhotoAddedDateTime(lastSyncedPhotoHash)) + 1.0 #Dont grab the photo at this time
+            #lastSyncTime = self.getPhotoDateTime(lastSyncedPhotoHash)
+            currentTime = time.time()
+            sql = "SELECT `Dir` FROM `photoshare`.`photos` WHERE `DateAdded` BETWEEN '{}' AND '{}' ORDER BY `DateAdded`".format(lastSyncTime, currentTime)
+        
         return self.executeSQL(sql)
         
     def getHash(self, photoDir):
@@ -175,6 +181,18 @@ class dbConnection:
         result = self.executeSQL(sql)
         if result:
             return result[0].get('Dir')
+
+    def getPhotoDateTime(self, hash):
+        sql = "SELECT `DateTime` FROM `photoshare`.`photos` WHERE `md5Hash` = '{}'".format(hash)
+        result = self.executeSQL(sql)
+        if result:
+            return result[0].get('DateTime')
+
+    def getPhotoAddedDateTime(self, lastSyncedPhotoHash):
+        sql = "SELECT `DateAdded` FROM `photoshare`.`photos` WHERE `md5Hash` = '{}'".format(lastSyncedPhotoHash)
+        result = self.executeSQL(sql)
+        if result:
+            return result[0].get('DateAdded')
         
 
     def getPhotoNameandPath(self, hash):
