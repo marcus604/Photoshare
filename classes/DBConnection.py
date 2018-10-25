@@ -3,6 +3,7 @@ import configparser
 import logging
 from argon2 import PasswordHasher
 from classes.User import User
+from classes.PSAlbum import PSAlbum
 from utils.log import getConsoleHandler, getFileHandler, getLogger
 import time
 
@@ -33,7 +34,7 @@ class dbConnection:
         try:
             self.SQL_CONNECTION = pymysql.connect(host=self.HOST, user=self.USERNAME, password=self.PASSWORD, charset=self.CHARSET, cursorclass=pymysql.cursors.DictCursor)
         except pymysql.err.OperationalError as e: 
-            if (e.args[0] == 1045):		#Doesnt catch on ubuntu
+            if (e.args[0] == 1045):		
                 print("rejecte credentials")
                 psLogger.error("Rejected Credentials SQL")
                 raise e
@@ -146,7 +147,12 @@ class dbConnection:
             return []   #Expects an iterable object
         return results
 
-        
+    def getAlbum(self, title):
+        sql = "SELECT `dateCreated`, `dateUpdated`, `userCreated` FROM `photoshare`.`albums` WHERE `title` = '{}'".format(title)
+        result = self.executeSQL(sql)
+        if result is None:  #No user found
+            return False
+        return PSAlbum(title, result[0].get('dateCreated'), result[0].get('dateUpdated'), result[0].get('userCreated'))
 
 
     def getRangeOfPhotoPaths(self, lastSync):
@@ -202,6 +208,30 @@ class dbConnection:
             return False
         return User(userName, result[0].get('Hash'), result[0].get('Salt'), result[0].get('LastSignedIn'), result[0].get('LastSync'))
 
+    def deleteUser(self, userName):
+        sql = "DELETE FROM `photoshare`.`users` WHERE `UserName` = '{}'".format(userName)
+        result = self.executeSQLReturnRowCount(sql)
+        if result:
+            return True
+        else: 
+            return False
+
+    def deletePhotoFromDB(self, photoHash):
+        sql = "DELETE FROM `photoshare`.`photos` WHERE `md5Hash` = '{}'".format(photoHash)
+        result = self.executeSQLReturnRowCount(sql)
+        if result:
+            return True
+        else:
+            return False
+
+    def deleteAlbum(self, title):
+        sql = "DELETE FROM `photoshare`.`albums` WHERE `title` = '{}'".format(title)
+        result = self.executeSQLReturnRowCount(sql)
+        if result:
+            return True
+        else:
+            return False
+
     def getIPFailedAttempts(self, ip):
         sql = "SELECT `failedAttempts` FROM `photoshare`.`ipaddresses` WHERE `address` = '{}'".format(ip)
         result = self.executeSQL(sql)
@@ -217,6 +247,14 @@ class dbConnection:
             numOfAttempts = numOfAttempts + 1
             sql = "UPDATE `photoshare`.`ipaddresses` SET `FailedAttempts` = '{}' WHERE `Address` = '{}'".format(numOfAttempts, ip)
         self.executeSQL(sql)
+    
+    def deleteIP(self, ip):
+        sql = "DELETE FROM `photoshare`.`ipaddresses` WHERE `Address` = '{}'".format(ip)
+        result = self.executeSQLReturnRowCount(sql)
+        if result:
+            return True
+        else: 
+            return False
 
     def userSignedIn(self, user, token):
         currentTime = time.time()
