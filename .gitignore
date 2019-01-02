@@ -42,11 +42,12 @@ Thumbs.db
 /__pycache__/
 /certs/
 /venv/
-*.ini
+
 /.*/
 /include/
 /lib/
 /Library/
 /logs/
 *.pyc
+settingss.ini
 
